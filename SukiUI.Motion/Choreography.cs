@@ -195,7 +195,7 @@ namespace SukiUI.Motion
 
         private Control[] _items = Array.Empty<Control>();
         private bool _pending;
-        private long _start;
+        private TimeSpan _start;
         private double _durationMs, _delayMs, _stagger;
         private double _blurMax, _offsetY, _scale;
 
@@ -264,7 +264,7 @@ namespace SukiUI.Motion
                 }
                 foreach (var item in _items)
                     item.Opacity = 0;
-                _start = SukiTicker.Timestamp;
+                _start = now; // the frame's time, shared with every other member
                 _durationMs = _duration().TotalMilliseconds;
                 _delayMs = _initialDelayMs();
                 _stagger = _staggerMs(_items.Length);
@@ -280,7 +280,7 @@ namespace SukiUI.Motion
             }
 
             // The cascade starts a moment after the popup itself has begun opening.
-            double elapsed = SukiTicker.ElapsedMilliseconds(_start) - _delayMs;
+            double elapsed = (now - _start).TotalMilliseconds - _delayMs;
             bool anyActive = false;
             for (int i = 0; i < _items.Length; i++)
             {
