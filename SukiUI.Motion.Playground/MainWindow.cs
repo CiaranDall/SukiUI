@@ -21,6 +21,11 @@ public sealed class MainWindow : Window
         new StiffSpringScene(),
         new OverdampedEaseScene(),
         new StylePriorityScene(),
+        // Phase 2 research: Avalonia's Composition API observed live.
+        new UiThreadStallScene(),
+        new OpacitySyncScene(),
+        new NoReadbackScene(),
+        new HitTestScene(),
     };
 
     private readonly ContentControl _host = new() { Margin = new Thickness(24) };
@@ -38,7 +43,7 @@ public sealed class MainWindow : Window
         {
             ItemsSource = AllScenes,
             ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<Scene>((s, _) =>
-                new TextBlock { Text = $"{s.BugId}  {s.Title}", TextWrapping = TextWrapping.Wrap }),
+                new TextBlock { Text = s is null ? "" : $"{s.BugId}  {s.Title}", TextWrapping = TextWrapping.Wrap }), // null while a virtualized container recycles
             Width = 300,
         };
         list.SelectionChanged += (_, _) =>

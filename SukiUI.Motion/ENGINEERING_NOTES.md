@@ -216,3 +216,119 @@
 | 12 | Одиночная пружина/Chain на свежем канале телепортировались к цели | Исправлен (найден по ходу) | `ClampWindowTests` |
 | 13 | `Mover.Dispose` не идемпотентен | Исправлен (найден по ходу) | `LifecycleTests` |
 | 14 | `Simulate` навсегда подключал поведение к элементу без `Enable` | Исправлен (найден по ходу) | `LifecycleTests` |
+
+
+---
+
+## 7. Avalonia Composition API (фаза 2)
+
+Источники — исходники Avalonia **12.1.1**: `src/Avalonia.Base/Rendering/Composition/**`,
+`src/Avalonia.Base/composition-schema.xml` (схема свойств, по ней генерируется код),
+`src/tools/DevGenerators/CompositionGenerator/Generator.cs` (шаблоны сеттеров),
+`src/Avalonia.Base/Visual.Composition.cs`, `src/Avalonia.Base/VisualExtensions.cs`.
+Живые проверки — сцены **C1–C4** в playground (headless их показать не может: там рендер на
+UI-потоке, а серверные значения не читаются).
+
+### 7.1. Что это
+
+- Avalonia 11+ рисует через **композитор**. UI-поток держит «клиентское» дерево
+  `CompositionVisual` (у каждого `Visual` есть свой), изменения пакетами (batch) уходят на
+  «сервер» композиции, который рисует кадры.
+- Публичный вход: `ElementComposition.GetElementVisual(visual)` → `CompositionVisual`
+  (есть только пока элемент присоединён). Анимации: `compositor.Create{Scalar|Double|Vector3D|…}KeyFrameAnimation()`,
+  `CreateExpressionAnimation`, `CreateImplicitAnimationCollection`, `CreateAnimationGroup`;
+  запуск — `visual.StartAnimation("Имя", anim)`, остановка — `StopAnimation`.
+- Ещё: `CompositionCustomVisual` + `CompositionCustomVisualHandler` — свой визуал с колбэками
+  на потоке рендера (`OnAnimationFrameUpdate`, `OnRender`, `OnMessage`).
+
+### 7.2. Поток
+
+- **Факт.** Win32: `Win32PlatformOptions.ShouldRenderOnUIThread = false` по умолчанию → таймер
+  рендера `SleepLoopRenderTimer` на отдельном потоке. Composition-анимации вычисляются на сервере
+  (`KeyFrameAnimationInstance.Evaluate`) — **UI-поток для них не нужен**.
+- Headless по умолчанию рендерит на UI-потоке → независимость от UI-потока в тестах не видна.
+- **Не проверено:** браузер (WASM) и мобильные платформы — какая там модель потоков.
+- **Проверка:** сцена C1 (UI-поток спит 1.5 с: SukiUI.Motion замирает, composition — нет).
+
+### 7.3. Что можно анимировать
+
+- **Публичные анимируемые** свойства `CompositionVisual`: `Visible`, `Opacity`, `ClipToBounds`,
+  `Offset`, `Translation`, `Size`, `AnchorPoint`, `CenterPoint`, `RotationAngle`, `Orientation`
+  (кватернион), `Scale`.
+- **Internal / не анимируются:** `TransformMatrix` (сюда кладётся `RenderTransform`), `Effect`
+  (blur/тень), `Clip`, `OpacityMask`.
+- Типы keyframe-анимаций: Scalar, Double, Boolean, Color, Vector, Vector2, Vector3, Vector3D,
+  Vector4, Quaternion. (`Color` анимирует `CompositionSolidColorVisual.Color`, не кисть элемента.)
+- **Для нас:** на поток рендера можно перенести только трансформы и прозрачность. Blur, тень,
+  произвольные `AvaloniaProperty` (`TypingIntensity`, `OverlayOpacity`), layout-свойства
+  (`MaxHeight`) — только UI-поток.
+
+### 7.4. Синхронизация `Visual` → `CompositionVisual` перезаписывает часть свойств
+
+- **Факт.** `Visual.SynchronizeCompositionProperties` при каждой пометке визуала «грязным» пишет
+  `Offset` (позиция из layout), `Size`, `Visible`, `Opacity`, `ClipToBounds`, `Clip`,
+  `OpacityMask`, `CacheMode`, `Effect`, `TransformMatrix` (из `RenderTransform`). В коде прямо
+  стоит `TODO: Introduce a dirty mask`.
+- **Факт.** Клиентский сеттер пишет только если значение **изменилось** (`field != value`), а
+  клиентское поле хранит последнее значение, записанное с UI-потока, не анимированное.
+  Запись **снимает** анимацию свойства (клиент: `PendingAnimations.Remove`; сервер:
+  `SetAnimatedValue → RemoveAnimationForProperty`).
+- **Следствия:**
+  - `Translation`, `Scale`, `RotationAngle`, `Orientation`, `CenterPoint` синхронизация не трогает —
+    **безопасны**.
+  - `Opacity` переживает перерисовки, но **обрывается**, как только меняется `Visual.Opacity`
+    (стиль `:disabled`, класс, код). После окончания анимации экран ≠ `Visual.Opacity` — свойство
+    на UI-потоке «врёт», пока его не перезапишут.
+  - `Offset`/`Size` обрываются при любом сдвиге/ресайзе в layout.
+- **Проверка:** сцена C2.
+
+### 7.5. Анимированное значение нельзя прочитать на UI-потоке
+
+- **Факт.** Клиентский геттер возвращает клиентское поле. Серверный readback
+  (`TryGetValidReadback`) — `internal`.
+- **Для нас:** прерывание с переносом позы и скорости (ключевая фича движка) требует **своей
+  модели траектории** на UI-потоке: поза/скорость считаются аналитически, а не читаются.
+- **Проверка:** сцена C3.
+
+### 7.6. Нет событий завершения и нет пружин — но есть пользовательский easing
+
+- **Факт.** Ни у анимаций, ни у визуала нет события «анимация закончилась». Встроенных
+  пружин / natural motion нет.
+- **Факт.** `InsertKeyFrame(progress, value, IEasing)` принимает любой `IEasing`, а
+  `Avalonia.Animation.Easings.Easing` реализует `IEasing` → наш easing вычисляется **на потоке
+  рендера**. `keyProgress` зажимается в [0, 1], результат easing — **нет** (перелёт пружины
+  работает; NaN/∞ → кадр пропускается).
+- **Ловушка.** `InsertKeyFrame` без easing берёт `Compositor.DefaultEasing` =
+  `SplineEasing(0.25, 0.1, 0.25, 1)`, **не линейный**.
+- **Факт.** Анимация стартует от текущего серверного значения (`Initialize(committedAt, field)`)
+  — непрерывность позы при прерывании даётся бесплатно, непрерывность скорости — нет.
+- **Факт.** Время старта — момент коммита пакета на сервере (`committedAt`), не `SukiTicker.Now`
+  → модель и экран расходятся примерно на кадр.
+- **Для нас:** пружину можно отдать композитору как **один keyframe с easing = точное решение
+  пружины** (с начальной скоростью) на заранее вычисленную длительность до settle. Settle-колбэк —
+  таймер на UI-потоке на ту же длительность. Easing-объекты должны быть неизменяемыми
+  (вызываются с потока рендера).
+
+### 7.7. Хит-тест и геометрия
+
+- **Факт.** Хит-тест (`CompositionTarget.TryHitTest`) идёт по серверному readback-у — по тому, что
+  реально нарисовано, **включая** composition-трансформы (с задержкой до кадра). *В ревью я
+  предполагал обратное — ошибался.*
+- **Факт.** `TransformToVisual` / `TranslatePoint` считаются по `Bounds` + `RenderTransform`
+  (`VisualExtensions.GetOffsetFrom`) — composition-трансформы **не видят**.
+- **Для нас:** под composition-сдвигом хит-тест честный, а код, который считает позиции
+  (попапы, drag, `TranslatePoint`), видит layout-позицию.
+- **Проверка:** сцена C4.
+
+### 7.8. Не проверено
+
+- Порядок композиции `TransformMatrix` (наш `RenderTransform`) с `Translation`/`Scale`/
+  `RotationAngle`/`CenterPoint` на сервере.
+- Стоимость: CPU UI-потока и потока рендера на кадр для обоих подходов — замер в фазе 3 (R3).
+- Поведение на WASM и мобильных платформах.
+
+### 7.9. `CompositionCustomVisualHandler` — не для нас (сейчас)
+
+- Даёт кадровый колбэк на потоке рендера, но только для **своего** рисования: свойства других
+  визуалов он менять не может. Запустить там интегратор движка для произвольных элементов нельзя.
+  Пригодится для собственных рисованных эффектов (ripple, частицы) — вне текущих фаз.

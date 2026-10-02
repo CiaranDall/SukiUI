@@ -42,5 +42,14 @@ git restore --worktree -- SukiUI.Motion
 | SukiSpringEaseOut при ζ > 1 | 11 | кривые движка (сплошные) против точного решения (пунктир) |
 | Записи движка перебивают стили | 6 (открыт) | текущее поведение; исправление — на этапе API |
 
+Исследовательские сцены фазы 2 (Composition API, см. `SukiUI.Motion/ENGINEERING_NOTES.md` §7):
+
+| Сцена | Что проверяет |
+|---|---|
+| C1 Анимация при занятом UI-потоке | SukiUI.Motion (UI-поток) замирает, composition (поток рендера) — нет |
+| C2 Синхронизация Visual → CompositionVisual | перерисовка не ломает composition-Opacity, изменение `Visual.Opacity` — обрывает |
+| C3 Нет чтения на UI-потоке | `comp.Scale`, прочитанный на UI-потоке, не меняется во время анимации |
+| C4 Хит-тест и геометрия | hover следует нарисованной позиции; `TranslatePoint` видит позицию из layout |
+
 `PlaygroundSmokeTests` в `SukiUI.Motion.Tests` строит каждую сцену и нажимает каждую кнопку
 в headless — playground не должен ломаться незаметно.

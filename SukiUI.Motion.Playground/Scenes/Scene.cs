@@ -22,6 +22,11 @@ public abstract class Scene
     /// <summary>What must happen now.</summary>
     public abstract string Expected { get; }
 
+    /// <summary>Header of the <see cref="Before"/> note (research scenes relabel it).</summary>
+    protected virtual string BeforeHeader => "До исправления";
+    /// <summary>Header of the <see cref="Expected"/> note.</summary>
+    protected virtual string ExpectedHeader => "Ожидается сейчас";
+
     protected abstract Control Build();
 
     public Control BuildPage() => new StackPanel
@@ -31,8 +36,8 @@ public abstract class Scene
         {
             new TextBlock { Text = $"{BugId} — {Title}", FontSize = 22, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap },
             Note("Что сделать", Steps, "#1F4E79"),
-            Note("До исправления", Before, "#8B1A1A"),
-            Note("Ожидается сейчас", Expected, "#1B5E20"),
+            Note(BeforeHeader, Before, "#8B1A1A"),
+            Note(ExpectedHeader, Expected, "#1B5E20"),
             new Border
             {
                 BorderBrush = Brushes.LightGray,
