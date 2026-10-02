@@ -7,13 +7,14 @@
 
 ## Сейчас
 
-- **Фаза:** 3 — производительность — **готова** (итоги: PLAN §4.1, замеры: ENGINEERING_NOTES §8).
-  Следующая — фаза 4 (API и дизайн), включая встраивание composition-бэкенда в `Channel`.
-- **Ветка:** `motion/bugfixes` в форке `CiaranDall/SukiUI` (remote `fork`).
+- **Фаза:** 4 — API и дизайн, порядок этапов — PLAN D30. Готово: 4.1 (имена, D31), 4.2 (баг 6, D32).
+  Следующий — 4.3: ядро канала (A4 политика арбитража, A6 зажим, A7 перенос скорости, A8 `Chain` в хореографии).
+- **Ветка:** `motion/api` в форке `CiaranDall/SukiUI` (remote `fork`), от `motion/bugfixes`.
+- **Апстрим-PR фазы 1:** kikipoulet/SukiUI#664 (ветка `fix/motion-engine-bugs`), фаза 4 его не трогает.
 - **База:** исходный `main` = `c2bf6bcae`.
-- **Тесты:** `SukiUI.Motion.Tests` — 66 зелёных, 2 пропущены (баг 6, отложен в фазу 4), 30/30 прогонов без
-  падений после исправления обвязки (D26); `SukiUI.Motion.RenderTests` — 12 зелёных. Решение `Suki.sln` собирается.
-- **Бенчмарки:** `SukiUI.Motion.Benchmarks` (BenchmarkDotNet) — см. его README.
+- **Тесты:** `SukiUI.Motion.Tests` — 74 зелёных, 0 пропущено, 10/10 прогонов; `SukiUI.Motion.RenderTests` — 12 зелёных.
+  Решение `Suki.sln` собирается.
+- **Ломающие изменения** — `SukiUI.Motion/MIGRATION.md`.
 
 ## Сделано
 
@@ -43,6 +44,11 @@
   `[Experimental("SUKIMOTION001")]`. Аналитические кривые (`Curves.cs`), адаптивная сетка ключевых кадров
   (`KeyFrameGrid.cs`, D22). Пиксельные тесты, замер стоимости (`--measure-cost`, NOTES §7.14).
   Сцена P1 в playground — для проверки глазами.
+
+### Фаза 4 — API и дизайн (идёт)
+- 4.1: `Motion` → `Animate`, `Program` → `MotionProgram`, префикс `Suki` у типов движка убран (D31); A13, A15.
+- 4.2: баг 6 — запись с приоритетом Animation, отпускание в базовой позе, базовый `RenderTransform` композируется
+  (D32, NOTES §4.8). Попутно: нестабильный тест P10 (NOTES §2.5).
 
 ### Фаза 3 — производительность
 - Инструменты: `SukiUI.Motion.Benchmarks`, режим `--measure-latency` (зонд на потоке рендера), кадровые тесты.

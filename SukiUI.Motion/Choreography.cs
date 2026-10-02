@@ -171,11 +171,12 @@ namespace SukiUI.Motion
     /// <summary>
     /// The staggered item cascade of an open popup — N item opacities, one program. Items
     /// are collected on the FIRST advance (the popup content only attaches once IsOpen=true),
-    /// each item fading 0 → 1 with a per-index delay while emerging from a blur that lands
+    /// each item fading in from 0 to its own resting (base) opacity with a per-index delay
+    /// while emerging from a blur that lands
     /// (radius 0) at 70% of the appearance duration, rising and scaling up to its resting
     /// pose; the per-item stagger is a function of the item count, and too many items skip the
     /// cascade entirely (shown immediately).
-    /// <see cref="Reset"/> rests the items at their normal pose — the close start and every
+    /// <see cref="Reset"/> lets go of every item (each shows its own styled pose again) — the close start and every
     /// non-settle termination of the popup handle call it.
     /// </summary>
     public sealed class CascadeProgram : MotionProgram
@@ -194,6 +195,7 @@ namespace SukiUI.Motion
         private readonly Func<double> _itemScale;
 
         private Control[] _items = Array.Empty<Control>();
+        private double[] _restOpacity = Array.Empty<double>(); // each item's base opacity — where it fades in to
         private bool _pending;
         private TimeSpan _start;
         private double _durationMs, _delayMs, _stagger;
@@ -230,11 +232,12 @@ namespace SukiUI.Motion
         /// abnormal close, template re-apply, detach, disable).</summary>
         public void Reset()
         {
+            // Let go of everything the cascade holds: each item shows its own (styled) pose
+            // again; what the cascade never moved is never touched.
             foreach (var item in _items)
             {
-                item.Opacity = 1.0;
-                if (item.Effect is BlurEffect)
-                    item.Effect = null;
+                AnimationLayer.Release(item, Visual.OpacityProperty);
+                EffectSlots.WriteBlur(item, 0.0);
                 Transforms.WriteTranslateY(item, 0.0);
                 Transforms.WriteScale(item, 1.0);
             }
@@ -262,8 +265,12 @@ namespace SukiUI.Motion
                     Done = true;
                     return false;
                 }
-                foreach (var item in _items)
-                    item.Opacity = 0;
+                _restOpacity = new double[_items.Length];
+                for (int i = 0; i < _items.Length; i++)
+                {
+                    _restOpacity[i] = AnimationLayer.BaseValue(_items[i], Visual.OpacityProperty);
+                    AnimationLayer.Write(_items[i], Visual.OpacityProperty, 0.0);
+                }
                 _start = now; // the frame's time, shared with every other member
                 _durationMs = _duration().TotalMilliseconds;
                 _delayMs = _initialDelayMs();
@@ -285,8 +292,8 @@ namespace SukiUI.Motion
             for (int i = 0; i < _items.Length; i++)
             {
                 double t = Math.Min(Math.Max((elapsed - i * _stagger) / _durationMs, 0.0), 1.0);
-                _items[i].Opacity = t;
-                BlurItem(_items[i], _blurMax * (1.0 - Math.Min(t / BlurSettleRatio, 1.0)));
+                AnimationLayer.Write(_items[i], Visual.OpacityProperty, _restOpacity[i] * t);
+                EffectSlots.WriteBlur(_items[i], _blurMax * (1.0 - Math.Min(t / BlurSettleRatio, 1.0)));
                 if (_offsetY != 0.0)
                     Transforms.WriteTranslateY(_items[i], _offsetY * (1.0 - t));
                 if (_scale != 1.0)
@@ -301,17 +308,5 @@ namespace SukiUI.Motion
             Done = true;
             return false;
         }
-
-        /// <summary>The proven Blur channel rule (see Channels.ForBlur), inlined for the
-        /// transient item set: attach-once above 0.5 DIP, mutate in place, dropped below —
-        /// no shader pass at rest, and the slot is left null when the item lands.</summary>
-        private static void BlurItem(Control item, double radius)
-        {
-            if (radius >= 0.5)
-                OwnedEffects.Blur(item).Radius = radius;
-            else if (item.Effect is BlurEffect)
-                item.Effect = null;
-        }
-
     }
 }

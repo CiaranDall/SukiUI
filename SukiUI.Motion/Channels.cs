@@ -77,18 +77,18 @@ namespace SukiUI.Motion
         /// <summary>Target opacity — the generic property channel over <see cref="Visual.OpacityProperty"/>.</summary>
         public Channel Opacity => Property(Visual.OpacityProperty);
 
-        /// <summary>One live BlurEffect while blurring, dropped entirely below the 0.5
-        /// threshold — no shader pass is paid once the blur has dissipated. The Effect
-        /// slot is single: a shadow-channel write replaces it, and back.</summary>
+        /// <summary>One engine-owned BlurEffect while blurring; below 0.5 DIP the blur lets go
+        /// of the Effect slot — no shader pass once it has dissipated, and the base (styled)
+        /// effect shows again. The Effect slot is single: a shadow-channel write takes it over,
+        /// and back.</summary>
         public Channel Blur => _blur ??= Channel.ForBlur(_owner, _target);
 
         /// <summary>Drop-shadow opacity (0..1) — the shadow's PRESENCE channel over the
-        /// single <see cref="Visual.Effect"/> slot: first write attaches the owned
-        /// DropShadowEffect, writes below the 0.02 threshold drop it entirely (no shader
-        /// pass at rest). Reads any DropShadowEffect holding the slot (pose continuity
-        /// with a template-placed one), replaces anything else — the Blur precedent.
-        /// Mutually exclusive with <see cref="Blur"/> on one target: one slot, last
-        /// writer owns it.</summary>
+        /// single <see cref="Visual.Effect"/> slot: the engine shows its own copy of the base
+        /// (styled) shadow — never the shared style instance — and below 0.02 shows none (no
+        /// shader pass); back at the base shadow's parameters it lets go of the slot. Reads the
+        /// DropShadowEffect on screen (pose continuity with a styled one). Mutually exclusive
+        /// with <see cref="Blur"/> on one target: one slot, last writer owns it.</summary>
         public Channel ShadowOpacity => _shadowOpacity ??= Channel.ForShadowOpacity(_owner, _target);
 
         /// <summary>Drop-shadow blur radius in DIPs — over the single Effect slot (see
@@ -101,9 +101,10 @@ namespace SukiUI.Motion
         /// <summary>Drop-shadow vertical offset — over the single Effect slot.</summary>
         public Channel ShadowOffsetY => _shadowOffsetY ??= Channel.ForShadowOffsetY(_owner, _target);
 
-        /// <summary>Any double styled property — the generic channel: reading and writing
-        /// the property IS the whole semantics. The same property always yields the same
-        /// channel (one arbitration state per animated property).</summary>
+        /// <summary>Any double styled property — the generic channel. Writes land at
+        /// Animation priority and are let go once back at the base value (style, local value,
+        /// default), so styles keep working at rest (see <see cref="AnimationLayer"/>). The same
+        /// property always yields the same channel (one arbitration state per animated property).</summary>
         public Channel Property(StyledProperty<double> property)
         {
             _properties ??= new Dictionary<StyledProperty<double>, Channel>();
@@ -319,7 +320,7 @@ namespace SukiUI.Motion
             v =>
             {
                 if (target() is { } t)
-                    ShadowEffects.WriteOpacity(t, v);
+                    EffectSlots.WriteShadowOpacity(t, v);
             });
 
         internal static Channel ForShadowBlur(Visual owner, Func<Visual?> target) => new(
@@ -328,7 +329,7 @@ namespace SukiUI.Motion
             v =>
             {
                 if (target() is { } t)
-                    ShadowEffects.WriteBlur(t, v);
+                    EffectSlots.WriteShadowBlur(t, v);
             },
             SettleThreshold.Dip);
 
@@ -338,7 +339,7 @@ namespace SukiUI.Motion
             v =>
             {
                 if (target() is { } t)
-                    ShadowEffects.WriteOffsetX(t, v);
+                    EffectSlots.WriteShadowOffsetX(t, v);
             },
             SettleThreshold.Dip);
 
@@ -348,7 +349,7 @@ namespace SukiUI.Motion
             v =>
             {
                 if (target() is { } t)
-                    ShadowEffects.WriteOffsetY(t, v);
+                    EffectSlots.WriteShadowOffsetY(t, v);
             },
             SettleThreshold.Dip);
 
@@ -360,7 +361,7 @@ namespace SukiUI.Motion
             v =>
             {
                 if (target() is { } t)
-                    t.SetValue(property, v);
+                    AnimationLayer.Write(t, property, v);
             });
 
         /// <summary>One live BlurEffect while blurring, dropped entirely below the 0.5
@@ -370,12 +371,8 @@ namespace SukiUI.Motion
             () => target()?.Effect is BlurEffect b ? b.Radius : 0.0,
             v =>
             {
-                if (target() is not { } t)
-                    return;
-                if (v >= 0.5)
-                    OwnedEffects.Blur(t).Radius = v;
-                else if (t.Effect is BlurEffect)
-                    t.Effect = null;
+                if (target() is { } t)
+                    EffectSlots.WriteBlur(t, v);
             },
             SettleThreshold.Dip);
 
@@ -664,54 +661,53 @@ namespace SukiUI.Motion
     }
 
     /// <summary>
-    /// The shared render-transform block of one target: ONE <c>TransformGroup</c> lazily
-    /// attached on the first transform-channel write (the proven attach-once rule — that
-    /// write is what schedules the frame the animation rides on), its children created
-    /// lazily per channel kind, all transform channels (scale, translate, rotate, skew)
-    /// writing through the same group so they COMPOSE instead of fighting over
-    /// RenderTransform. Keyed on the rendered visual (two surfaces over the same target
-    /// share the block; a re-resolved template part gets a fresh one for free). Fixed
-    /// composition order — translate · skew · rotate · scale around the target's
-    /// RenderTransformOrigin (the proven dialog order when rotate/skew are absent; the
-    /// skew shears in the parent frame, after rotation in point order); children are
-    /// inserted at their canonical rank whatever their creation order. A pre-existing
-    /// bare ScaleTransform is adopted on first attach (pose continuity); any other
-    /// RenderTransform value is replaced by the first write.
+    /// The shared render-transform block of one target: ONE <c>TransformGroup</c> holding the
+    /// engine's children (created lazily per channel kind), all transform channels (scale,
+    /// translate, rotate, skew) writing through the same group so they COMPOSE instead of
+    /// fighting over RenderTransform. Keyed on the rendered visual (two surfaces over the same
+    /// target share the block; a re-resolved template part gets a fresh one for free). The group
+    /// is held at Animation priority (PLAN D32) and let go once every engine child is back at
+    /// identity — the base RenderTransform (style, template, local value) is the element's
+    /// transform again. While held, that base is composed as the innermost child, so the engine
+    /// starts and stops without a jump; it is re-read at every write (base changes under an
+    /// animation raise no public notification). Fixed composition order of the engine children
+    /// — translate · skew · rotate · scale around the target's RenderTransformOrigin (the proven
+    /// dialog order when rotate/skew are absent; the skew shears in the parent frame, after
+    /// rotation in point order). Writing identity to a target the engine never moved attaches
+    /// nothing.
     /// </summary>
     internal static class Transforms
     {
         private static readonly ConditionalWeakTable<Visual, Block> Blocks = new();
 
-        private const int TranslateRank = 0, SkewRank = 1, RotateRank = 2, ScaleRank = 3;
-
         private sealed class Block
         {
+            public Block(Visual target) => Held = new HeldValue<ITransform?>(target, Visual.RenderTransformProperty);
+
+            public readonly HeldValue<ITransform?> Held;
             public TransformGroup? Group;
+            public ITransform? BaseSource; // the base RenderTransform composed into Group
+            public int Version;            // bumped when a child is created
+            public int GroupVersion = -1;  // the Version Group was built at
             public TranslateTransform? Translate;
             public SkewTransform? Skew;
             public RotateTransform? Rotate;
             public ScaleTransform? Scale;
+
+            public bool IsIdentity =>
+                (Translate is null || (Translate.X == 0.0 && Translate.Y == 0.0))
+                && (Skew is null || (Skew.AngleX == 0.0 && Skew.AngleY == 0.0))
+                && (Rotate is null || Rotate.Angle == 0.0)
+                && (Scale is null || (Scale.ScaleX == 1.0 && Scale.ScaleY == 1.0));
         }
 
         // ---- reads (never attach; identity until the first write) -------------------------
 
-        internal static double ReadScaleX(Visual? t)
-        {
-            if (t is null)
-                return 1.0;
-            if (Blocks.TryGetValue(t, out var b) && b.Scale is { } s)
-                return s.ScaleX;
-            return t.RenderTransform is ScaleTransform bare ? bare.ScaleX : 1.0;
-        }
+        internal static double ReadScaleX(Visual? t) =>
+            t is not null && Blocks.TryGetValue(t, out var b) && b.Scale is { } s ? s.ScaleX : 1.0;
 
-        internal static double ReadScaleY(Visual? t)
-        {
-            if (t is null)
-                return 1.0;
-            if (Blocks.TryGetValue(t, out var b) && b.Scale is { } s)
-                return s.ScaleY;
-            return t.RenderTransform is ScaleTransform bare ? bare.ScaleY : 1.0;
-        }
+        internal static double ReadScaleY(Visual? t) =>
+            t is not null && Blocks.TryGetValue(t, out var b) && b.Scale is { } s ? s.ScaleY : 1.0;
 
         internal static double ReadTranslateX(Visual? t) =>
             t is not null && Blocks.TryGetValue(t, out var b) && b.Translate is { } tr ? tr.X : 0.0;
@@ -728,199 +724,313 @@ namespace SukiUI.Motion
         internal static double ReadSkewY(Visual? t) =>
             t is not null && Blocks.TryGetValue(t, out var b) && b.Skew is { } sk ? sk.AngleY : 0.0;
 
-        // ---- writes (attach the block once, then mutate children in place) ----------------
+        // ---- writes (mutate the children in place, then hold or let go of the group) ----------
 
         internal static void WriteScale(Visual t, double v)
         {
-            var b = EnsureScale(t);
+            if (ScaleOf(t, v) is not { } b)
+                return;
             b.Scale!.ScaleX = v;
             b.Scale.ScaleY = v;
+            Commit(t, b);
         }
 
-        internal static void WriteScaleX(Visual t, double v) => EnsureScale(t).Scale!.ScaleX = v;
+        internal static void WriteScaleX(Visual t, double v)
+        {
+            if (ScaleOf(t, v) is not { } b)
+                return;
+            b.Scale!.ScaleX = v;
+            Commit(t, b);
+        }
 
-        internal static void WriteScaleY(Visual t, double v) => EnsureScale(t).Scale!.ScaleY = v;
+        internal static void WriteScaleY(Visual t, double v)
+        {
+            if (ScaleOf(t, v) is not { } b)
+                return;
+            b.Scale!.ScaleY = v;
+            Commit(t, b);
+        }
 
         internal static void WriteTranslateX(Visual t, double v)
         {
-            var b = BlockOf(t);
-            EnsureGroup(t, b);
-            b.Translate ??= AddChild(b.Group!, new TranslateTransform(), TranslateRank);
-            b.Translate.X = v;
+            if (TranslateOf(t, v) is not { } b)
+                return;
+            b.Translate!.X = v;
+            Commit(t, b);
         }
 
         internal static void WriteTranslateY(Visual t, double v)
         {
-            var b = BlockOf(t);
-            EnsureGroup(t, b);
-            b.Translate ??= AddChild(b.Group!, new TranslateTransform(), TranslateRank);
-            b.Translate.Y = v;
+            if (TranslateOf(t, v) is not { } b)
+                return;
+            b.Translate!.Y = v;
+            Commit(t, b);
         }
 
         internal static void WriteRotate(Visual t, double v)
         {
-            var b = BlockOf(t);
-            EnsureGroup(t, b);
-            b.Rotate ??= AddChild(b.Group!, new RotateTransform(), RotateRank);
-            b.Rotate.Angle = v;
+            if (RotateOf(t, v) is not { } b)
+                return;
+            b.Rotate!.Angle = v;
+            Commit(t, b);
         }
 
         internal static void WriteSkewX(Visual t, double v)
         {
-            var b = BlockOf(t);
-            EnsureGroup(t, b);
-            b.Skew ??= AddChild(b.Group!, new SkewTransform(), SkewRank);
-            b.Skew.AngleX = v;
+            if (SkewOf(t, v) is not { } b)
+                return;
+            b.Skew!.AngleX = v;
+            Commit(t, b);
         }
 
         internal static void WriteSkewY(Visual t, double v)
         {
-            var b = BlockOf(t);
-            EnsureGroup(t, b);
-            b.Skew ??= AddChild(b.Group!, new SkewTransform(), SkewRank);
-            b.Skew.AngleY = v;
+            if (SkewOf(t, v) is not { } b)
+                return;
+            b.Skew!.AngleY = v;
+            Commit(t, b);
         }
 
         // ---- the block --------------------------------------------------------------------
 
-        private static Block BlockOf(Visual t) =>
-            Blocks.TryGetValue(t, out var b) ? b : Blocks.GetValue(t, _ => new Block());
-
-        private static Block EnsureScale(Visual t)
+        private static Block? ScaleOf(Visual t, double v)
         {
-            var b = BlockOf(t);
-            EnsureGroup(t, b);
-            if (b.Scale is null)
-                b.Scale = AddChild(b.Group!, new ScaleTransform(1, 1), ScaleRank);
+            var b = BlockFor(t, v == 1.0, static b => b.Scale is null);
+            if (b is not null && b.Scale is null)
+            {
+                b.Scale = new ScaleTransform(1, 1);
+                b.Version++;
+            }
             return b;
         }
 
-        private static void EnsureGroup(Visual t, Block b)
+        private static Block? TranslateOf(Visual t, double v)
         {
-            if (b.Group is { } g && ReferenceEquals(t.RenderTransform, g))
+            var b = BlockFor(t, v == 0.0, static b => b.Translate is null);
+            if (b is not null && b.Translate is null)
+            {
+                b.Translate = new TranslateTransform();
+                b.Version++;
+            }
+            return b;
+        }
+
+        private static Block? RotateOf(Visual t, double v)
+        {
+            var b = BlockFor(t, v == 0.0, static b => b.Rotate is null);
+            if (b is not null && b.Rotate is null)
+            {
+                b.Rotate = new RotateTransform();
+                b.Version++;
+            }
+            return b;
+        }
+
+        private static Block? SkewOf(Visual t, double v)
+        {
+            var b = BlockFor(t, v == 0.0, static b => b.Skew is null);
+            if (b is not null && b.Skew is null)
+            {
+                b.Skew = new SkewTransform();
+                b.Version++;
+            }
+            return b;
+        }
+
+        /// <summary>The target's block — null when an identity write would only create
+        /// state (no block yet, or no child of that kind): nothing to move, nothing attached.</summary>
+        private static Block? BlockFor(Visual t, bool identity, Func<Block, bool> childMissing)
+        {
+            if (Blocks.TryGetValue(t, out var b))
+                return identity && childMissing(b) ? null : b;
+            if (identity)
+                return null;
+            b = new Block(t);
+            Blocks.Add(t, b);
+            return b;
+        }
+
+        private static void Commit(Visual t, Block b)
+        {
+            if (b.IsIdentity)
+            {
+                // At rest: the base RenderTransform is the element's transform again.
+                b.Held.Release();
                 return;
-            // (Re-)attach. The previous group, if any, was displaced by an external
-            // RenderTransform write: release its children so they can move over.
+            }
+            var baseTransform = AnimationLayer.BaseValue(t, Visual.RenderTransformProperty);
+            if (b.Held.IsHeld && b.GroupVersion == b.Version && ReferenceEquals(b.BaseSource, baseTransform))
+                return; // the children were mutated in place — the group re-renders by itself
+            Rebuild(b, baseTransform);
+        }
+
+        private static void Rebuild(Block b, ITransform? baseTransform)
+        {
+            // A fresh group whenever its child set or the base changes (structure is rare:
+            // animation starts, base changes) — the previous one releases its children first.
             b.Group?.Children.Clear();
             var group = new TransformGroup();
-            b.Group = group;
-            // Adopt a pre-existing bare scale on first attach (pose continuity with the old
-            // engines' read rule); anything else is replaced by the first write.
-            if (b.Scale is null && t.RenderTransform is ScaleTransform existing)
-                b.Scale = new ScaleTransform(existing.ScaleX, existing.ScaleY);
-            // Every child the block already owns moves to the new group with its pose — a
-            // re-attach must never orphan translate/rotate/skew (their writes would vanish).
-            if (b.Translate is { } translate)
-                AddChild(group, translate, TranslateRank);
-            if (b.Skew is { } skew)
-                AddChild(group, skew, SkewRank);
-            if (b.Rotate is { } rotate)
-                AddChild(group, rotate, RotateRank);
-            if (b.Scale is { } scale)
-                AddChild(group, scale, ScaleRank);
-            t.RenderTransform = group; // the attach-once write that schedules the frame
-        }
-
-        private static T AddChild<T>(TransformGroup group, T child, int rank) where T : Transform
-        {
-            int index = 0;
-            foreach (var existing in group.Children)
+            // The base is the innermost child: the engine moves the element as styled.
+            switch (baseTransform)
             {
-                if (Rank(existing) < rank)
-                    index++;
-                else
+                case null:
+                    break;
+                case Transform transform:
+                    group.Children.Add(transform);
+                    break;
+                default:
+                    group.Children.Add(new MatrixTransform(baseTransform.Value));
                     break;
             }
-            group.Children.Insert(index, child);
-            return child;
+            if (b.Translate is { } translate)
+                group.Children.Add(translate);
+            if (b.Skew is { } skew)
+                group.Children.Add(skew);
+            if (b.Rotate is { } rotate)
+                group.Children.Add(rotate);
+            if (b.Scale is { } scale)
+                group.Children.Add(scale);
+            b.Group = group;
+            b.GroupVersion = b.Version;
+            b.BaseSource = baseTransform;
+            b.Held.Hold(group);
         }
-
-        private static int Rank(Transform t) => t switch
-        {
-            TranslateTransform => TranslateRank,
-            SkewTransform => SkewRank,
-            RotateTransform => RotateRank,
-            _ => ScaleRank,
-        };
     }
 
     /// <summary>
-    /// The drop-shadow half of the single <see cref="Visual.Effect"/> slot: shadow
-    /// channels mutate in place the DropShadowEffect holding the slot (adopting a
-    /// template-placed one, replacing any other kind — the Blur precedent). Opacity is
-    /// the presence channel: below the 0.02 threshold the effect leaves the slot
-    /// entirely — no shader pass once the shadow has faded. The slot is single: blur and
-    /// shadow are mutually exclusive on one target, the last writer owning it.
+    /// The single <see cref="Visual.Effect"/> slot as the engine sees it (PLAN D32): the engine
+    /// holds ONE effect of its own at Animation priority — a blur or a drop shadow, the last
+    /// writer owning the slot — and lets go when it adds nothing to the base effect (style,
+    /// template, local value), which then shows again. The engine only ever mutates instances it
+    /// created: a base effect — typically a style setter value, ONE instance shared by every
+    /// control the style matches — is copied on the first write (pose continuity), never
+    /// mutated (bug 7). Presence thresholds keep the shader pass off at rest: a blur below 0.5
+    /// DIP and a shadow below 0.02 opacity count as absent.
     /// </summary>
-    internal static class ShadowEffects
+    internal static class EffectSlots
     {
-        private const double DetachBelow = 0.02;
+        private const double BlurPresentFrom = 0.5;
+        private const double ShadowPresentFrom = 0.02;
 
-        internal static void WriteBlur(Visual t, double v) => Effect(t).BlurRadius = v;
+        private static readonly ConditionalWeakTable<Visual, Slot> Slots = new();
 
-        internal static void WriteOffsetX(Visual t, double v) => Effect(t).OffsetX = v;
+        private enum Owner { None, Blur, Shadow }
 
-        internal static void WriteOffsetY(Visual t, double v) => Effect(t).OffsetY = v;
-
-        internal static void WriteOpacity(Visual t, double v)
+        private sealed class Slot
         {
-            if (v < DetachBelow)
+            public Slot(Visual target) => Held = new HeldValue<IEffect?>(target, Visual.EffectProperty);
+
+            public readonly HeldValue<IEffect?> Held;
+            public Owner Owner;               // which channel kind holds the slot (None: let go)
+            public IEffect? Shown;            // what the engine holds (null: "no effect" as a pose)
+            public BlurEffect? Blur;          // the engine's blur, kept while absent
+            public DropShadowEffect? Shadow;  // the engine's shadow parameters, kept while hidden
+        }
+
+        internal static void WriteBlur(Visual t, double radius)
+        {
+            var slot = Slots.TryGetValue(t, out var s) ? s : null;
+            var baseEffect = AnimationLayer.BaseValue(t, Visual.EffectProperty);
+            double baseRadius = baseEffect is BlurEffect baseBlur ? baseBlur.Radius : 0.0;
+
+            if (radius < BlurPresentFrom)
             {
-                // Only a DropShadow leaves the slot — a foreign effect kind is never
-                // detached by the shadow channels.
-                if (t.Effect is DropShadowEffect)
-                    t.Effect = null;
+                if (slot?.Owner == Owner.Shadow)
+                    return; // a shadow owns the slot: an absent blur leaves it alone
+                if (baseRadius < BlurPresentFrom)
+                {
+                    if (slot is not null)
+                        Release(slot);             // nothing added: the base effect shows again
+                    return;
+                }
+                Hold(slot ?? Create(t), null, Owner.Blur); // a styled blur dissolved to crisp: a pose
                 return;
             }
-            Effect(t).Opacity = v;
+
+            slot ??= Create(t);
+            if (baseEffect is BlurEffect sameBlur && sameBlur.Radius == radius)
+            {
+                Release(slot);
+                return;
+            }
+            slot.Blur ??= new BlurEffect();
+            slot.Blur.Radius = radius;
+            Hold(slot, slot.Blur, Owner.Blur);
         }
 
-        private static DropShadowEffect Effect(Visual t) => OwnedEffects.DropShadow(t);
-    }
+        internal static void WriteShadowOpacity(Visual t, double v) => WriteShadow(t, v, static (s, x) => s.Opacity = x);
 
-    /// <summary>
-    /// The effects the engine may mutate in place: only instances it created itself. A
-    /// foreign effect in the slot — typically a style setter value, ONE instance shared by
-    /// every control the style matches — is never mutated: the first write copies it into
-    /// an engine-owned instance (pose continuity) and takes the slot with that copy.
-    /// </summary>
-    internal static class OwnedEffects
-    {
-        private static readonly ConditionalWeakTable<Visual, IEffect> Owned = new();
+        internal static void WriteShadowBlur(Visual t, double v) => WriteShadow(t, v, static (s, x) => s.BlurRadius = x);
 
-        internal static BlurEffect Blur(Visual t)
+        internal static void WriteShadowOffsetX(Visual t, double v) => WriteShadow(t, v, static (s, x) => s.OffsetX = x);
+
+        internal static void WriteShadowOffsetY(Visual t, double v) => WriteShadow(t, v, static (s, x) => s.OffsetY = x);
+
+        private static void WriteShadow(Visual t, double value, Action<DropShadowEffect, double> apply)
         {
-            if (t.Effect is BlurEffect existing && IsOwned(t, existing))
-                return existing;
-            var own = new BlurEffect { Radius = (t.Effect as BlurEffect)?.Radius ?? 0.0 };
-            return Take(t, own);
+            var slot = Slots.TryGetValue(t, out var s) ? s : Create(t);
+            var baseShadow = AnimationLayer.BaseValue(t, Visual.EffectProperty) as DropShadowEffect;
+
+            // The parameters continue from the base shadow while the engine holds no shadow of
+            // its own; while it does (shown or hidden), from its own.
+            if (slot.Owner != Owner.Shadow)
+                slot.Shadow = baseShadow is not null ? Copy(baseShadow) : slot.Shadow ?? new DropShadowEffect();
+            var shadow = slot.Shadow!;
+            apply(shadow, value);
+
+            if (shadow.Opacity < ShadowPresentFrom)
+            {
+                if (slot.Owner == Owner.Blur)
+                    return; // a blur owns the slot: a hidden shadow leaves it alone
+                if (baseShadow is not null && baseShadow.Opacity >= ShadowPresentFrom)
+                    Hold(slot, null, Owner.Shadow); // a styled shadow faded out: a pose of its own
+                else
+                    Release(slot);                  // nothing added: the base effect shows again
+                return;
+            }
+
+            if (baseShadow is not null && SameShadow(shadow, baseShadow))
+            {
+                Release(slot);
+                return;
+            }
+            Hold(slot, shadow, Owner.Shadow);
         }
 
-        internal static DropShadowEffect DropShadow(Visual t)
+        private static Slot Create(Visual t)
         {
-            if (t.Effect is DropShadowEffect existing && IsOwned(t, existing))
-                return existing;
-            var own = t.Effect is DropShadowEffect foreign
-                ? new DropShadowEffect
-                {
-                    BlurRadius = foreign.BlurRadius,
-                    Color = foreign.Color,
-                    Opacity = foreign.Opacity,
-                    OffsetX = foreign.OffsetX,
-                    OffsetY = foreign.OffsetY,
-                }
-                : new DropShadowEffect();
-            return Take(t, own);
+            var slot = new Slot(t);
+            Slots.Add(t, slot);
+            return slot;
         }
 
-        private static bool IsOwned(Visual t, IEffect effect) =>
-            Owned.TryGetValue(t, out var owned) && ReferenceEquals(owned, effect);
-
-        private static T Take<T>(Visual t, T effect) where T : class, IEffect
+        private static void Hold(Slot slot, IEffect? effect, Owner owner)
         {
-            Owned.AddOrUpdate(t, effect);
-            t.Effect = effect; // the attach-once write that schedules the frame
-            return effect;
+            slot.Owner = owner;
+            if (slot.Held.IsHeld && ReferenceEquals(slot.Shown, effect))
+                return; // mutated in place — the effect re-renders by itself
+            slot.Shown = effect;
+            slot.Held.Hold(effect);
         }
+
+        private static void Release(Slot slot)
+        {
+            slot.Owner = Owner.None;
+            slot.Shown = null;
+            slot.Held.Release();
+        }
+
+        private static DropShadowEffect Copy(DropShadowEffect s) => new()
+        {
+            BlurRadius = s.BlurRadius,
+            Color = s.Color,
+            Opacity = s.Opacity,
+            OffsetX = s.OffsetX,
+            OffsetY = s.OffsetY,
+        };
+
+        private static bool SameShadow(DropShadowEffect a, DropShadowEffect b) =>
+            a.Opacity == b.Opacity && a.BlurRadius == b.BlurRadius && a.OffsetX == b.OffsetX
+            && a.OffsetY == b.OffsetY && a.Color == b.Color;
     }
 }
