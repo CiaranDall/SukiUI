@@ -210,9 +210,9 @@ namespace SukiUI.Motion
     /// live pose and velocity); an incoming hover never preempts it, it re-resolves its lazy
     /// target (retarget without snap, pose and velocity kept), as does the same spring
     /// re-offered; a plain
-    /// timed trajectory is preemptable; a pose write wins over everything; settle is
-    /// |Δtarget| &lt; 0.0005 and |v| &lt; 0.02 with an exact snap; an idle channel costs zero
-    /// frame callbacks.
+    /// timed trajectory is preemptable; a pose write wins over everything; a spring settles at
+    /// the channel's <see cref="SettleThreshold"/> (sized to its unit) with an exact snap; an
+    /// idle channel costs zero frame callbacks.
     /// Choreographies (popup) do not go through <see cref="Offer"/>: they use <see cref="Run"/>
     /// (forced preemption, spring velocity carry) and <see cref="PrePoseIfIdle"/> (the From
     /// rule), and own their ticker subscription themselves.
@@ -241,12 +241,16 @@ namespace SukiUI.Motion
         private double _seenMax = double.NegativeInfinity;
         private bool _startPoseTracked;
 
-        private Channel(Visual owner, Func<double> read, Action<double> write)
+        private Channel(Visual owner, Func<double> read, Action<double> write, SettleThreshold? settle = null)
         {
             _owner = owner;
             _read = read;
             _write = write;
+            Settle = settle ?? SettleThreshold.Unitless;
         }
+
+        /// <summary>When a spring on this channel counts as at rest — sized to the channel's unit.</summary>
+        internal SettleThreshold Settle { get; }
 
         // ---- channel factories: one write protocol each, all over a resolved target ------
 
@@ -284,7 +288,8 @@ namespace SukiUI.Motion
             {
                 if (target() is { } t)
                     Transforms.WriteTranslateX(t, v);
-            });
+            },
+            SettleThreshold.Dip);
 
         internal static Channel ForTranslateY(Visual owner, Func<Visual?> target) => new(
             owner,
@@ -293,7 +298,8 @@ namespace SukiUI.Motion
             {
                 if (target() is { } t)
                     Transforms.WriteTranslateY(t, v);
-            });
+            },
+            SettleThreshold.Dip);
 
         internal static Channel ForRotate(Visual owner, Func<Visual?> target) => new(
             owner,
@@ -302,7 +308,8 @@ namespace SukiUI.Motion
             {
                 if (target() is { } t)
                     Transforms.WriteRotate(t, v);
-            });
+            },
+            SettleThreshold.Degrees);
 
         internal static Channel ForSkewX(Visual owner, Func<Visual?> target) => new(
             owner,
@@ -311,7 +318,8 @@ namespace SukiUI.Motion
             {
                 if (target() is { } t)
                     Transforms.WriteSkewX(t, v);
-            });
+            },
+            SettleThreshold.Degrees);
 
         internal static Channel ForSkewY(Visual owner, Func<Visual?> target) => new(
             owner,
@@ -320,7 +328,8 @@ namespace SukiUI.Motion
             {
                 if (target() is { } t)
                     Transforms.WriteSkewY(t, v);
-            });
+            },
+            SettleThreshold.Degrees);
 
         internal static Channel ForShadowOpacity(Visual owner, Func<Visual?> target) => new(
             owner,
@@ -338,7 +347,8 @@ namespace SukiUI.Motion
             {
                 if (target() is { } t)
                     ShadowEffects.WriteBlur(t, v);
-            });
+            },
+            SettleThreshold.Dip);
 
         internal static Channel ForShadowOffsetX(Visual owner, Func<Visual?> target) => new(
             owner,
@@ -347,7 +357,8 @@ namespace SukiUI.Motion
             {
                 if (target() is { } t)
                     ShadowEffects.WriteOffsetX(t, v);
-            });
+            },
+            SettleThreshold.Dip);
 
         internal static Channel ForShadowOffsetY(Visual owner, Func<Visual?> target) => new(
             owner,
@@ -356,7 +367,8 @@ namespace SukiUI.Motion
             {
                 if (target() is { } t)
                     ShadowEffects.WriteOffsetY(t, v);
-            });
+            },
+            SettleThreshold.Dip);
 
         /// <summary>Any double styled property of one target — the generic channel: reading
         /// and writing the property IS the whole semantics.</summary>
@@ -382,7 +394,8 @@ namespace SukiUI.Motion
                     OwnedEffects.Blur(t).Radius = v;
                 else if (t.Effect is BlurEffect)
                     t.Effect = null;
-            });
+            },
+            SettleThreshold.Dip);
 
         /// <summary>Current on-screen pose of the channel.</summary>
         public double Value => _read();

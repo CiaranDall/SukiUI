@@ -48,12 +48,6 @@ namespace SukiUI.Motion
     /// </summary>
     internal static class Integrator
     {
-        /// <summary>Settle threshold on position (|x - target|).</summary>
-        internal const double SettlePosition = 0.0005;
-
-        /// <summary>Settle threshold on velocity.</summary>
-        internal const double SettleVelocity = 0.02;
-
         /// <summary>The historical substep cap — unchanged for every spring soft enough.</summary>
         private const double MaxSubstep = 0.008;
 
@@ -73,5 +67,31 @@ namespace SukiUI.Motion
         }
 
         internal static double Lerp(double from, double to, double t) => from + (to - from) * t;
+    }
+
+    /// <summary>
+    /// When a spring counts as at rest: |x - target| &lt; <see cref="Position"/> and
+    /// |v| &lt; <see cref="Velocity"/>, then it snaps exactly onto the target and stops ticking.
+    /// Sized per channel unit so the final snap stays invisible without ticking (and re-rendering)
+    /// long after the motion stopped on screen (P8, ENGINEERING_NOTES §8.2). The velocity bound is
+    /// 40 × the position bound in every unit — the historical ratio.
+    /// </summary>
+    internal readonly record struct SettleThreshold(double Position, double Velocity)
+    {
+        /// <summary>Unitless channels (scale, opacity) and generic properties of unknown unit — the
+        /// historical thresholds: 0.0005 of scale is ~0.1 DIP on a 200-DIP element, ~1/8 of an
+        /// 8-bit opacity level.</summary>
+        internal static readonly SettleThreshold Unitless = new(0.0005, 0.02);
+
+        /// <summary>Channels in DIPs (translation, blur radius, shadow offsets and blur): a snap of
+        /// at most 1/20 DIP (0.1 device pixel at 200 %).</summary>
+        internal static readonly SettleThreshold Dip = new(0.05, 2.0);
+
+        /// <summary>Channels in degrees (rotation, skew): 0.01° moves a point 300 DIPs from the
+        /// origin by ~0.05 DIP.</summary>
+        internal static readonly SettleThreshold Degrees = new(0.01, 0.4);
+
+        internal bool IsSettled(double displacement, double velocity) =>
+            Math.Abs(displacement) < Position && Math.Abs(velocity) < Velocity;
     }
 }

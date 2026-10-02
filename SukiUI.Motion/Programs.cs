@@ -237,8 +237,8 @@ namespace SukiUI.Motion
     /// channel pose — clamped to the channel window — from rest (timed phases carry no
     /// velocity, exactly like the proven release spring) unless a choreography seeded the
     /// live velocity of the spring it displaced (<see cref="SeedVelocity"/> — the popup's
-    /// mid-collapse reopen). Settles at 0.0005/0.02 with an exact snap onto the resting
-    /// point. A lazy target can be re-resolved mid-flight without touching pose or velocity:
+    /// mid-collapse reopen). Settles at the channel's <see cref="SettleThreshold"/> with an
+    /// exact snap onto the resting point. A lazy target can be re-resolved mid-flight without touching pose or velocity:
     /// the mid-bounce retarget where "the target moves without a snap".
     /// </summary>
     public sealed class SpringTrajectory : Program
@@ -308,8 +308,7 @@ namespace SukiUI.Motion
             Integrator.Step(ref _x, ref _v, _targetValue, dt, _springValue);
             Channel!.Write(_x);
 
-            if (Math.Abs(_x - _targetValue) < Integrator.SettlePosition &&
-                Math.Abs(_v) < Integrator.SettleVelocity)
+            if (Channel.Settle.IsSettled(_x - _targetValue, _v))
             {
                 _x = _targetValue; // settled: snap exactly onto the resting point
                 Channel.Write(_x);

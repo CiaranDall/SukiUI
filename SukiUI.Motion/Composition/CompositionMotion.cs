@@ -253,7 +253,8 @@ namespace SukiUI.Motion.Composition
         /// <summary>A damped spring toward <paramref name="target"/> from the live pose, carrying the
         /// live velocity unless an explicit <paramref name="initialVelocity"/> (a kick) is given.</summary>
         public void SpringTo(double target, Spring spring, double? initialVelocity = null) =>
-            Start(new SpringCurve(Value, initialVelocity ?? Velocity, target, spring), target);
+            Start(new SpringCurve(Value, initialVelocity ?? Velocity, target, spring,
+                _isScale ? SettleThreshold.Unitless : SettleThreshold.Dip), target);
 
         /// <summary>A timed eased move toward <paramref name="target"/> from the live pose.</summary>
         public void EaseTo(double target, TimeSpan duration, Easing? easing = null) =>

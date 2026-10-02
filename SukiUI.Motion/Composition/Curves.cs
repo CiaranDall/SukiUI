@@ -42,7 +42,7 @@ namespace SukiUI.Motion.Composition
     /// <summary>
     /// The exact solution of <c>x'' = -omega²(x - target) - decay·x'</c> from (x0, v0), in all three
     /// damping regimes. Unlike the UI engine's integrator it can be evaluated at any instant, which
-    /// is what an interruption needs. Settles at the same thresholds as the integrator.
+    /// is what an interruption needs. Settles at the same per-unit thresholds as the integrator.
     /// </summary>
     internal sealed class SpringCurve : ICurve
     {
@@ -51,16 +51,18 @@ namespace SukiUI.Motion.Composition
         private enum Regime { Under, Critical, Over }
 
         private readonly double _target, _d0, _a, _omega2, _decay;
+        private readonly SettleThreshold _settle;
         private readonly Regime _regime;
         private readonly double _w;      // omega_d (under) or omega_o (over)
         private readonly double _b;      // under / critical second coefficient
         private readonly double _r1, _r2, _c1, _c2; // over: modes and amplitudes
 
-        public SpringCurve(double x0, double v0, double target, Spring spring)
+        public SpringCurve(double x0, double v0, double target, Spring spring, SettleThreshold? settle = null)
         {
             if (!spring.IsValid)
                 throw new ArgumentException("default(Spring) has no stiffness or damping.", nameof(spring));
             _target = target;
+            _settle = settle ?? SettleThreshold.Unitless;
             _d0 = x0 - target;
             _a = spring.Decay / 2.0;
             _decay = spring.Decay;
@@ -130,7 +132,7 @@ namespace SukiUI.Motion.Composition
         /// </summary>
         private double ComputeDuration()
         {
-            double eps = Integrator.SettlePosition, epsV = Integrator.SettleVelocity;
+            double eps = _settle.Position, epsV = _settle.Velocity;
             double t;
             switch (_regime)
             {

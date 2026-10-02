@@ -67,14 +67,14 @@ public class CurveTests
 
         for (double t = d; t < d + 2.0; t += 0.001)
         {
-            Assert.True(Math.Abs(curve.Position(t) - 1.0) < Integrator.SettlePosition, $"position at {t}");
-            Assert.True(Math.Abs(curve.Velocity(t)) < Integrator.SettleVelocity, $"velocity at {t}");
+            Assert.True(Math.Abs(curve.Position(t) - 1.0) < SettleThreshold.Unitless.Position, $"position at {t}");
+            Assert.True(Math.Abs(curve.Velocity(t)) < SettleThreshold.Unitless.Velocity, $"velocity at {t}");
         }
 
         // The last instant the curve is OUTSIDE the thresholds — the true settle time.
         double last = 0;
         for (double t = 0; t < d; t += 0.0005)
-            if (Math.Abs(curve.Position(t) - 1.0) >= Integrator.SettlePosition || Math.Abs(curve.Velocity(t)) >= Integrator.SettleVelocity)
+            if (Math.Abs(curve.Position(t) - 1.0) >= SettleThreshold.Unitless.Position || Math.Abs(curve.Velocity(t)) >= SettleThreshold.Unitless.Velocity)
                 last = t;
         Assert.True(d <= last * 1.6 + 0.02, $"duration {d:0.000}s vs true settle {last:0.000}s");
     }
