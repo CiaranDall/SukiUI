@@ -49,7 +49,7 @@ internal static class CostMeasurement
             ("idle", null),
             ("engine (UI thread)", (b, to) =>
             {
-                var x = Motion.For(b).TranslateX;
+                var x = Animate.For(b).TranslateX;
                 x.Track(0);
                 x.Track(30);
                 x.Offer(x.To(to).Spring(Spring));
@@ -77,7 +77,7 @@ internal static class CostMeasurement
             // Rest everything from the previous phase first (engine poses AND composition poses).
             foreach (var b in items)
             {
-                Motion.For(b).TranslateX.Offer(Motion.For(b).TranslateX.Pose(0));
+                Animate.For(b).TranslateX.Offer(Animate.For(b).TranslateX.Pose(0));
                 CompositionMotion.For(b).TranslateX.Pose(0);
             }
             startMs = 0;
@@ -97,8 +97,8 @@ internal static class CostMeasurement
             DispatcherTimer.RunOnce(() =>
             {
                 cpu0 = Process.GetCurrentProcess().TotalProcessorTime;
-                dispatchMs0 = SukiMotionStats.TotalDispatchMs;
-                dispatches0 = SukiMotionStats.DispatchCount;
+                dispatchMs0 = MotionStats.TotalDispatchMs;
+                dispatches0 = MotionStats.DispatchCount;
                 startMs = 0;
                 wall.Restart();
                 DispatcherTimer.RunOnce(EndPhase, TimeSpan.FromSeconds(seconds));
@@ -109,8 +109,8 @@ internal static class CostMeasurement
         {
             double elapsed = wall.Elapsed.TotalSeconds;
             double cpu = (Process.GetCurrentProcess().TotalProcessorTime - cpu0).TotalSeconds;
-            double dispatchMs = SukiMotionStats.TotalDispatchMs - dispatchMs0;
-            long dispatches = SukiMotionStats.DispatchCount - dispatches0;
+            double dispatchMs = MotionStats.TotalDispatchMs - dispatchMs0;
+            long dispatches = MotionStats.DispatchCount - dispatches0;
             schedule?.Stop();
             schedule = null;
             report.AppendLine(ci,

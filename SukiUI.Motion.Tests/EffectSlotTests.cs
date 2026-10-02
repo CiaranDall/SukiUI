@@ -19,8 +19,8 @@ public class EffectSlotTests
         using var _ = h;
         Assert.Same(first.Effect, second.Effect); // precondition: the setter value is shared
 
-        Motion.For(first).ShadowOpacity.Write(0.9);
-        Motion.For(first).ShadowBlur.Write(30);
+        Animate.For(first).ShadowOpacity.Write(0.9);
+        Animate.For(first).ShadowBlur.Write(30);
 
         var other = Assert.IsType<DropShadowEffect>(second.Effect);
         Assert.Equal(0.5, other.Opacity);
@@ -34,7 +34,7 @@ public class EffectSlotTests
         using var _ = h;
         Assert.Same(first.Effect, second.Effect); // precondition: the setter value is shared
 
-        Motion.For(first).Blur.Write(12);
+        Animate.For(first).Blur.Write(12);
 
         Assert.Equal(4, Assert.IsType<BlurEffect>(second.Effect).Radius);
     }

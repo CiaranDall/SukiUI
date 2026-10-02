@@ -12,7 +12,7 @@ namespace SukiUI.Motion
     /// finishes, readable by the members observing it (derived writes) and by the
     /// choreography that steps it.
     /// </summary>
-    public abstract class Program
+    public abstract class MotionProgram
     {
         /// <summary>
         /// The channel this program writes, bound at construction — the strong typing of
@@ -42,7 +42,7 @@ namespace SukiUI.Motion
 
         /// <summary>
         /// Starts the program on its channel at choreography start: forced preemption with
-        /// spring velocity carry through <see cref="Channel.Run(Program)"/>; channel-less
+        /// spring velocity carry through <see cref="Channel.Run(MotionProgram)"/>; channel-less
         /// programs (the cascade) simply start.
         /// </summary>
         internal void Run()
@@ -67,7 +67,7 @@ namespace SukiUI.Motion
     /// An instantaneous pose write. A pose wins over everything: whatever was running stops,
     /// the pose lands, the channel rests (detach/disable lifecycle).
     /// </summary>
-    public sealed class PoseProgram : Program
+    public sealed class PoseProgram : MotionProgram
     {
         private readonly double _value;
 
@@ -94,7 +94,7 @@ namespace SukiUI.Motion
     /// Starts from the channel's current pose; an explicit <see cref="From(double)"/> is a
     /// PRE-POSE, not a start override (see <see cref="PrePose"/>).
     /// </summary>
-    public sealed class TimedTrajectory : Program
+    public sealed class TimedTrajectory : MotionProgram
     {
         private static readonly Easing DefaultEase = new LinearEasing(); // stateless, shared
 
@@ -201,7 +201,7 @@ namespace SukiUI.Motion
             Channel.Track(_toValue);
             _durationValue = _duration();
             _easingValue = _easing();
-            _start = SukiTicker.Now;
+            _start = MotionTicker.Now;
             Done = false;
         }
 
@@ -241,7 +241,7 @@ namespace SukiUI.Motion
     /// exact snap onto the resting point. A lazy target can be re-resolved mid-flight without touching pose or velocity:
     /// the mid-bounce retarget where "the target moves without a snap".
     /// </summary>
-    public sealed class SpringTrajectory : Program
+    public sealed class SpringTrajectory : MotionProgram
     {
         private readonly Func<Spring> _spring;
         private readonly Func<double> _target;
@@ -277,7 +277,7 @@ namespace SukiUI.Motion
         public void SeedVelocity(double v) => _seedV = v;
 
         /// <summary>True when an explicit kick is armed — the ambient-velocity carry of
-        /// <see cref="Channel.Run(Program)"/> must not overwrite it.</summary>
+        /// <see cref="Channel.Run(MotionProgram)"/> must not overwrite it.</summary>
         public bool HasKick => _seedV.HasValue;
 
         public override void PrePose()
@@ -297,7 +297,7 @@ namespace SukiUI.Motion
             _seedV = null;
             _targetValue = _target();
             Channel.Track(_targetValue);
-            _last = SukiTicker.Now;
+            _last = MotionTicker.Now;
             Done = false;
         }
 
@@ -347,7 +347,7 @@ namespace SukiUI.Motion
     /// stretch) an offered spring interrupts immediately. The last step finishing leaves the
     /// channel resting wherever it is (hold at the bottom).
     /// </summary>
-    public sealed class Chain : Program
+    public sealed class Chain : MotionProgram
     {
         private readonly List<TimedTrajectory> _steps;
         private readonly bool _mustFinishFirst;
@@ -377,7 +377,7 @@ namespace SukiUI.Motion
             _parked = null; // a re-armed chain purges the memorized release
             _index = 0;
             Done = false;
-            BeginStep(SukiTicker.Now, from: Channel!.ClampPose(Channel.Value));
+            BeginStep(MotionTicker.Now, from: Channel!.ClampPose(Channel.Value));
         }
 
         public override bool Advance(TimeSpan now)

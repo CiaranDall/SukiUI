@@ -18,7 +18,7 @@ namespace SukiUI.Motion
     /// overshoot) with the envelope under ~1.2% by t = 1, so the trajectory can end on the
     /// target without a visible snap.
     /// </summary>
-    public class SukiSpringEaseOut : Easing
+    public class SpringEaseOut : Easing
     {
         // decay = 2 * zeta * omega with zeta = 0.7.
         private const double DefaultOmega = 6.43;
@@ -79,7 +79,7 @@ namespace SukiUI.Motion
     /// oscillator, <c>1 - e^(-damping·t) · cos(frequency·t)</c>. Higher damping = less
     /// oscillation (snappy), higher frequency = faster response.
     /// </summary>
-    public class SukiEaseElasticIn : Easing
+    public class DampedEaseIn : Easing
     {
         public double Damping { get; set; } = 10.0;
 

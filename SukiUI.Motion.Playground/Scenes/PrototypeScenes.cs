@@ -28,7 +28,7 @@ public sealed class PrototypeSpringScene : CompositionScene
     {
         var top = Box("#E07B39", 50);
         var bottom = Box("#3F7FBF", 50);
-        var engine = Motion.For(top).TranslateX;
+        var engine = Animate.For(top).TranslateX;
         var proto = CompositionMotion.For(bottom).TranslateX;
         engine.Track(0);
         engine.Track(300);

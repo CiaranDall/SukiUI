@@ -2,7 +2,7 @@ namespace SukiUI.Motion.Tests;
 
 public class EasingTests
 {
-    // Bug 11: SukiSpringEaseOut claims the exact closed-form damped spring, but for zeta > 1
+    // Bug 11: SpringEaseOut claims the exact closed-form damped spring, but for zeta > 1
     // it clamps omega_d to ~0 and evaluates the CRITICALLY damped curve instead of the
     // overdamped one (cosh/sinh) — far too fast for a heavy spring. SukiDialogMotion feeds
     // it zeta up to 1.05 (default profile) and 1.3 (alternate profile).
@@ -13,7 +13,7 @@ public class EasingTests
     [InlineData(6.0, 30.0)]     // zeta 2.50 — clearly overdamped
     public void Spring_ease_matches_the_exact_damped_solution(double omega, double decay)
     {
-        var ease = new SukiSpringEaseOut { Omega = omega, Decay = decay };
+        var ease = new SpringEaseOut { Omega = omega, Decay = decay };
         double end = Exact(omega, decay, 1.0);
 
         foreach (double t in new[] { 0.1, 0.25, 0.5, 0.75, 0.9 })

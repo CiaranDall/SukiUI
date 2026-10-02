@@ -13,7 +13,7 @@ public class ChoreographyTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var s = Motion.For(border);
+        var s = Animate.For(border);
         int settled = 0;
 
         var choreography = new Choreography()

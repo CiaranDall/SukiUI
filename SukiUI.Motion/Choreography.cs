@@ -24,7 +24,7 @@ namespace SukiUI.Motion
     /// </remarks>
     public sealed class Choreography
     {
-        private readonly List<Program> _members = new();
+        private readonly List<MotionProgram> _members = new();
         private readonly Action? _preamble;
         private Action? _settle;
         private IDisposable? _subscription;
@@ -33,7 +33,7 @@ namespace SukiUI.Motion
         /// start — the real popup Show() (see <see cref="PopupHandle.Show"/>).</param>
         public Choreography(Action? preamble = null) => _preamble = preamble;
 
-        public Choreography And(Program member)
+        public Choreography And(MotionProgram member)
         {
             _members.Add(member);
             return this;
@@ -73,7 +73,7 @@ namespace SukiUI.Motion
                 return;
             }
 
-            _subscription = SukiTicker.Subscribe(owner, OnFrame);
+            _subscription = MotionTicker.Subscribe(owner, OnFrame);
         }
 
         /// <summary>External termination (preemption by a new choreography, template
@@ -126,7 +126,7 @@ namespace SukiUI.Motion
     /// plan: <c>x.To(...).Spring(...).And(...).Then(popup.Hide())</c>.</summary>
     public static class ChoreographyExtensions
     {
-        public static Choreography And(this Program first, Program next) =>
+        public static Choreography And(this MotionProgram first, MotionProgram next) =>
             new Choreography().And(first).And(next);
     }
 
@@ -136,7 +136,7 @@ namespace SukiUI.Motion
     /// evaluated every frame, AFTER the members it observes have advanced; it is done when
     /// they are done. Register it after its sources.
     /// </summary>
-    public sealed class DerivedTrajectory : Program
+    public sealed class DerivedTrajectory : MotionProgram
     {
         private readonly Func<double> _value;
         private readonly Func<bool> _done;
@@ -178,7 +178,7 @@ namespace SukiUI.Motion
     /// <see cref="Reset"/> rests the items at their normal pose — the close start and every
     /// non-settle termination of the popup handle call it.
     /// </summary>
-    public sealed class CascadeProgram : Program
+    public sealed class CascadeProgram : MotionProgram
     {
         // The item's blur reaches 0 at this fraction of its appearance duration — crisp
         // for the fade's tail, the effect slot freed early.

@@ -115,7 +115,7 @@ namespace SukiUI.Motion.Composition
             _flushRequested = false;
             if (ElementComposition.GetElementVisual(_visual) is not { } visual)
                 return;
-            var now = SukiTicker.Now;
+            var now = MotionTicker.Now;
             if (_translationDirty)
             {
                 _translationDirty = false;
@@ -240,10 +240,10 @@ namespace SukiUI.Motion.Composition
         }
 
         /// <summary>Current pose, from the curve (what the compositor is playing, within ~1 frame).</summary>
-        public double Value => PositionAt(SukiTicker.Now);
+        public double Value => PositionAt(MotionTicker.Now);
 
         /// <summary>Current velocity, from the curve.</summary>
-        public double Velocity => _curve.Velocity(Elapsed(SukiTicker.Now));
+        public double Velocity => _curve.Velocity(Elapsed(MotionTicker.Now));
 
         public bool IsAnimating => _settle is not null || (_uncommitted && _curve.Duration > 0);
 
@@ -295,7 +295,7 @@ namespace SukiUI.Motion.Composition
             _settle = null;
             _curve = curve;
             _final = final;
-            _start = SukiTicker.Now;
+            _start = MotionTicker.Now;
             _uncommitted = true; // timed for real at the commit (CompositionSurface.Flush)
             _owner.MarkDirty(_isScale);
         }
@@ -312,7 +312,7 @@ namespace SukiUI.Motion.Composition
         {
             _settle = null;
             _curve = new RestCurve(_final);
-            _start = SukiTicker.Now;
+            _start = MotionTicker.Now;
             _owner.MarkDirty(_isScale); // static final pose; the other axis may still be running
             Settled?.Invoke();
         }

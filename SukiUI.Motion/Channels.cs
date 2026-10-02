@@ -13,24 +13,6 @@ using Avalonia.Media;
 namespace SukiUI.Motion
 {
     /// <summary>
-    /// The single entry point and access vocabulary of the motion layer: everything
-    /// animable hangs off a <see cref="Surface"/> obtained from <see cref="For"/> — the
-    /// element itself, one of its template parts (<see cref="Surface.Part"/>), or its
-    /// template popup (<see cref="Surface.Popup"/>, a surface root plus the IsOpen
-    /// lifecycle). Surfaces differ only by how their target resolves, never by the
-    /// channels they expose.
-    /// </summary>
-    public static class Motion
-    {
-        private static readonly ConditionalWeakTable<Visual, Surface> Surfaces = new();
-
-        /// <summary>The single entry point: one surface per element (a single arbitration
-        /// state per animated property).</summary>
-        public static Surface For(Visual visual) =>
-            Surfaces.GetValue(visual, v => new Surface(v, () => v));
-    }
-
-    /// <summary>
     /// One animatable target: a resolved visual and its channels. Everything animable is
     /// a surface — the element, a template part, a popup root — differing only by the
     /// resolver; the channel vocabulary is identical everywhere. Channels are lazily
@@ -141,7 +123,7 @@ namespace SukiUI.Motion
         {
             if (_owner is not TemplatedControl host)
                 throw new InvalidOperationException(
-                    $"Motion: template parts require a TemplatedControl host, got {_owner.GetType().Name}.");
+                    $"Surface.Part: template parts require a TemplatedControl host, got {_owner.GetType().Name}.");
 
             var parts = Parts.GetValue(host, _ => new Dictionary<string, Surface>());
             if (parts.TryGetValue(name, out var existing))
@@ -161,7 +143,7 @@ namespace SukiUI.Motion
                     .OfType<Control>()
                     .FirstOrDefault(c => c.Name == name);
                 if (target is null)
-                    Debug.WriteLine($"Motion.Part: '{name}' not found in the template of {host.GetType().Name} — channels no-op until it resolves.");
+                    Debug.WriteLine($"Surface.Part: '{name}' not found in the template of {host.GetType().Name} — channels no-op until it resolves.");
             }
             return surface;
         }
@@ -177,7 +159,7 @@ namespace SukiUI.Motion
         {
             if (_owner is not TemplatedControl host)
                 throw new InvalidOperationException(
-                    $"Motion: popups require a TemplatedControl host, got {_owner.GetType().Name}.");
+                    $"Surface.Popup: popups require a TemplatedControl host, got {_owner.GetType().Name}.");
             return new PopupHandle(host, popupPart, rootPart, itemsPart, isHostOpen);
         }
 
@@ -194,7 +176,7 @@ namespace SukiUI.Motion
         {
             if (_owner is not TemplatedControl host)
                 throw new InvalidOperationException(
-                    $"Motion: popups require a TemplatedControl host, got {_owner.GetType().Name}.");
+                    $"Surface.Popup: popups require a TemplatedControl host, got {_owner.GetType().Name}.");
             return new PopupHandle(host, resolvePopup, resolveRoot, resolveItems, isHostOpen);
         }
     }
@@ -226,7 +208,7 @@ namespace SukiUI.Motion
         private readonly Visual _owner; // ticker fallback owner; only used by the Offer path
         private readonly Func<double> _read;
         private readonly Action<double> _write;
-        private Program? _active;
+        private MotionProgram? _active;
         // The active program belongs to a stopped choreography: nobody advances it any more.
         // It still answers Velocity (the displacing spring carries it) and still counts as
         // in flight for the From rule, but Offer treats the channel as free.
@@ -441,7 +423,7 @@ namespace SukiUI.Motion
         /// Offers an incoming program to the channel: the single place where the
         /// "who owns the channel" rules apply (the press rules).
         /// </summary>
-        public void Offer(Program incoming)
+        public void Offer(MotionProgram incoming)
         {
             if (incoming is PoseProgram)
             {
@@ -535,7 +517,7 @@ namespace SukiUI.Motion
         /// program itself: the channel drops its own subscription, if an Offer-started
         /// program had one — never two drivers on one channel.
         /// </summary>
-        public void Run(Program incoming)
+        public void Run(MotionProgram incoming)
         {
             if (incoming is SpringTrajectory spring && !spring.HasKick)
                 spring.SeedVelocity(Velocity);
@@ -546,11 +528,11 @@ namespace SukiUI.Motion
 
         /// <summary>True while <paramref name="program"/> owns this channel — a choreography
         /// stops advancing a member whose channel was taken over.</summary>
-        internal bool Owns(Program program) => ReferenceEquals(_active, program) && !_frozen;
+        internal bool Owns(MotionProgram program) => ReferenceEquals(_active, program) && !_frozen;
 
         /// <summary>Marks the member of a stopped choreography as frozen: it keeps its pose
         /// and velocity for a displacing program, but no longer blocks an Offer.</summary>
-        internal void Freeze(Program program)
+        internal void Freeze(MotionProgram program)
         {
             if (ReferenceEquals(_active, program))
                 _frozen = true;
@@ -573,7 +555,7 @@ namespace SukiUI.Motion
         /// <summary>Releases the channel once its choreography member completed (settle):
         /// idle again, a later From pre-poses it. Never called on preemption — the displacing
         /// spring reads the live velocity through the active program first.</summary>
-        public void Release(Program program)
+        public void Release(MotionProgram program)
         {
             if (ReferenceEquals(_active, program))
                 SetActive(null);
@@ -584,13 +566,13 @@ namespace SukiUI.Motion
         /// was left in.</summary>
         public void Rest() => SetActive(null);
 
-        private void SetActive(Program? program)
+        private void SetActive(MotionProgram? program)
         {
             _active = program;
             _frozen = false;
         }
 
-        private void StartProgram(Program program)
+        private void StartProgram(MotionProgram program)
         {
             if (TopLevel.GetTopLevel(_owner) is null)
                 return;
@@ -605,7 +587,7 @@ namespace SukiUI.Motion
         /// WITHOUT a synchronous tick — the spring integrates from the next frame, exactly
         /// like the old completion tick starting the release spring.
         /// </summary>
-        internal void Handoff(Program program)
+        internal void Handoff(MotionProgram program)
         {
             SetActive(program);
             program.Start();
@@ -613,7 +595,7 @@ namespace SukiUI.Motion
 
         /// <summary>Replaces a still-active program (chain releasing the channel to a spring
         /// beyond its guaranteed descent).</summary>
-        internal void Replace(Program oldActive, Program incoming)
+        internal void Replace(MotionProgram oldActive, MotionProgram incoming)
         {
             if (ReferenceEquals(_active, oldActive))
                 StartProgram(incoming);
@@ -623,10 +605,10 @@ namespace SukiUI.Motion
         {
             if (_subscription is not null)
                 return;
-            _subscription = SukiTicker.Subscribe(_owner, OnFrame);
+            _subscription = MotionTicker.Subscribe(_owner, OnFrame);
             // Prime the pump (the proven engine's trick): the synchronous advance produces
             // the first property write that schedules the frame the first callback rides on.
-            OnFrame(SukiTicker.Now);
+            OnFrame(MotionTicker.Now);
         }
 
         private void OnFrame(TimeSpan now)

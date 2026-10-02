@@ -15,7 +15,7 @@ public class SpringTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var scale = Motion.For(border).Scale;
+        var scale = Animate.For(border).Scale;
 
         scale.Offer(scale.To(1.1).Spring(new Spring(omega, decay)));
         h.Run(TimeSpan.FromSeconds(3));

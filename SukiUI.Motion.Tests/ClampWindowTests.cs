@@ -15,7 +15,7 @@ public class ClampWindowTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var scale = Motion.For(border).Scale;
+        var scale = Animate.For(border).Scale;
 
         scale.Offer(scale.To(1.1).Spring(new Spring(Omega: 20, Decay: 28)));
         h.Frame();
@@ -28,7 +28,7 @@ public class ClampWindowTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var scale = Motion.For(border).Scale;
+        var scale = Animate.For(border).Scale;
 
         scale.Offer(scale.To(0.9).Over(TimeSpan.FromMilliseconds(160)).MustFinish());
         h.Frame();

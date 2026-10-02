@@ -7,10 +7,6 @@ using SukiUI.Motion;
 
 namespace SukiUI.ControlsAnimation
 {
-    // The SukiPressMotion precedent: the simple name "Motion" would bind to the
-    // sibling namespace — this alias restores the class binding.
-    using Motion = SukiUI.Motion.Motion;
-
     /// <summary>
     /// The toast show/dismiss choreographies over the SukiUI.Motion engine — the old
     /// fire-and-forget helpers (and the host's Task.Delay(300) guess of their end)
@@ -44,12 +40,12 @@ namespace SukiUI.ControlsAnimation
             var p = P();
             toast.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative); // the scale is centered
             toast.ClipToBounds = true; // the bottom-anchored card unrolls from the slot — clip the overflow above
-            var s = Motion.For(toast);
-            var cardEase = new SukiSpringEaseOut { Omega = p.ShowSpringOmega, Decay = p.ShowSpringDecay };
+            var s = Animate.For(toast);
+            var cardEase = new SpringEaseOut { Omega = p.ShowSpringOmega, Decay = p.ShowSpringDecay };
             var show = new Choreography()
                 .And(s.Property(SukiToast.MaxHeightProperty).From(0.0).To(p.GrowMaxHeight)
                     .Over(p.GrowDuration)
-                    .Ease(new SukiSpringEaseOut { Omega = p.GrowSpringOmega, Decay = p.GrowSpringDecay }))
+                    .Ease(new SpringEaseOut { Omega = p.GrowSpringOmega, Decay = p.GrowSpringDecay }))
                 .And(s.Scale.From(p.FromScale).To(1.0).Over(p.ShowDuration).Ease(cardEase))
                 .And(s.TranslateX.From(p.FromOffsetX).To(0.0).Over(p.ShowDuration).Ease(cardEase))
                 .And(s.TranslateY.From(p.FromOffsetY).To(0.0).Over(p.ShowDuration).Ease(cardEase))
@@ -70,19 +66,19 @@ namespace SukiUI.ControlsAnimation
         internal void PlayDismiss(SukiToast toast, Action onSettled)
         {
             var p = P();
-            var s = Motion.For(toast);
+            var s = Animate.For(toast);
             var fade = s.Opacity.To(0.0).Over(p.DismissFade);
             toast.ClipToBounds = true; // the icon circle lives outside the clipped card — keep the collapse clean
 
             var dismiss = new Choreography()
                 .And(fade)
                 .And(s.TranslateX.To(p.DismissExitX).Over(p.DismissDuration)
-                    .Ease(new SukiSpringEaseOut { Omega = p.ShowSpringOmega, Decay = p.ShowSpringDecay }))
+                    .Ease(new SpringEaseOut { Omega = p.ShowSpringOmega, Decay = p.ShowSpringDecay }))
                 .And(new DerivedTrajectory(s.Blur,
                     () => (1.0 - s.Opacity.Value) * p.DissolveBlurRadius,
                     () => fade.Done))
                 .And(s.Property(SukiToast.MaxHeightProperty).To(0.0).Over(p.DismissDuration)
-                    .Ease(new SukiSpringEaseOut { Omega = p.GrowSpringOmega, Decay = p.GrowSpringDecay }))
+                    .Ease(new SpringEaseOut { Omega = p.GrowSpringOmega, Decay = p.GrowSpringDecay }))
                 .Then(() =>
                 {
                     toast.ClipToBounds = false;

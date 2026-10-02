@@ -7,12 +7,6 @@ using SukiUI.Motion;
 
 namespace SukiUI.ControlsAnimation
 {
-    // Inside this namespace the simple name "Motion" would bind to the SIBLING NAMESPACE
-    // SukiUI.Motion (a member of SukiUI) before any outer using is consulted — this alias,
-    // declared in the namespace body, restores the class binding so descriptions read
-    // Motion.For(...) exactly as written in Plan.md.
-    using Motion = SukiUI.Motion.Motion;
-
     /// <summary>
     /// The ToggleSwitch knob behavior described declaratively over the SukiUI.Motion
     /// engine (see SukiUI.Motion/Plan.md): the knob is a physical puck — it SNAPS between
@@ -21,13 +15,13 @@ namespace SukiUI.ControlsAnimation
     /// stretch derived from the same velocity), crisp and round at rest. The knob's resting
     /// shadow stays the template's BoxShadow: Blur and Shadow share the single Effect slot,
     /// so the smear owns the slot only while moving. Enable (from
-    /// <see cref="SukiMotion{TSelf}"/>) and Preset attached properties, profile resolved
+    /// <see cref="MotionBehavior{TSelf}"/>) and Preset attached properties, profile resolved
     /// per gesture through <see cref="SukiAnimationTheme"/> so a live switch applies to the
     /// NEXT gesture. Template contract: a knob part named PART_Knob with
     /// RenderTransformOrigin 50%,50% — positioning stays the template's, the motion only
     /// renders the travel on top of it.
     /// </summary>
-    public class SukiToggleSwitchMotion : SukiMotion<SukiToggleSwitchMotion>
+    public class SukiToggleSwitchMotion : MotionBehavior<SukiToggleSwitchMotion>
     {
         public static readonly AttachedProperty<SukiTogglePreset> PresetProperty =
             AvaloniaProperty.RegisterAttached<SukiToggleSwitchMotion, TemplatedControl, SukiTogglePreset>(
@@ -48,7 +42,7 @@ namespace SukiUI.ControlsAnimation
                 return null;
             }
 
-            var knob = Motion.For(toggle).Part("PART_Knob");
+            var knob = Animate.For(toggle).Part("PART_Knob");
 
             // Per-gesture profile snapshot (resolved when each program starts — a live
             // SukiAnimationTheme switch applies to the NEXT gesture, never mid-flight).
@@ -76,30 +70,22 @@ namespace SukiUI.ControlsAnimation
                     () => slide.Done));
 
             // Boot & template re-apply: pose the knob outright at its rest pose — no
-            // visible slide for a switch born checked, and a fresh part re-poses. Both
-            // start paths guard on staging: Attach runs during styling, before the visual
-            // tree exists (no TopLevel — the ticker throws), and so can an early bound
-            // IsChecked; whatever is skipped pre-staging is corrected by this same pose
-            // at TemplateApplied, which always fires after the control is staged.
-            void Pose()
-            {
-                if (TopLevel.GetTopLevel(toggle) is null)
-                    return;
+            // visible slide for a switch born checked, and a fresh part re-poses. Attach
+            // runs during styling, before the visual tree exists: a choreography started
+            // there lands on its final pose at once (no TopLevel, no frames), and the knob
+            // part only resolves at TemplateApplied, which re-poses it.
+            void Pose() =>
                 new Choreography()
                     .And(knob.TranslateX.Pose(IsOn() ? P().Travel : 0.0))
                     .Start(toggle);
-            }
 
             Pose();
             void OnTemplateApplied(object? sender, TemplateAppliedEventArgs e) => Pose();
             toggle.TemplateApplied += OnTemplateApplied;
 
             return new Mover(toggle)
-                .OnPropertyChanged(ToggleButton.IsCheckedProperty, () =>
-                {
-                    if (TopLevel.GetTopLevel(toggle) is not null)
-                        snap.Start(toggle);
-                })
+                // Detached (an early bound IsChecked), the snap lands on its pose at once.
+                .OnPropertyChanged(ToggleButton.IsCheckedProperty, () => snap.Start(toggle))
                 .OnDispose(() => toggle.TemplateApplied -= OnTemplateApplied);
         }
     }

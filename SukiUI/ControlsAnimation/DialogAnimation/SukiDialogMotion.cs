@@ -9,10 +9,6 @@ using SukiUI.Motion;
 
 namespace SukiUI.ControlsAnimation
 {
-    // Inside this namespace the simple name "Motion" would bind to the SIBLING NAMESPACE
-    // SukiUI.Motion before any outer using is consulted — this alias restores the class.
-    using Motion = SukiUI.Motion.Motion;
-
     /// <summary>
     /// The dialog open / close / pinned-shake choreography described declaratively over
     /// the SukiUI.Motion engine (see SukiUI.Motion/Plan.md) — SukiDialogPhysics retold:
@@ -76,7 +72,7 @@ namespace SukiUI.ControlsAnimation
             // The close replays the open calibration (the closure captures this gesture's
             // omega/zeta — the very transitions the old engine kept).
             _openDuration = TimeSpan.FromMilliseconds(durationMs);
-            _openEase = () => new SukiSpringEaseOut { Omega = omega, Decay = 2.0 * zeta * omega };
+            _openEase = () => new SpringEaseOut { Omega = omega, Decay = 2.0 * zeta * omega };
 
             // The Froms pre-pose the emerged-from-the-click pose BEFORE the members start
             // (the no-flash rule) — in flight (a re-shown pooled dialog mid-close), they
@@ -171,7 +167,7 @@ namespace SukiUI.ControlsAnimation
             if (!ReferenceEquals(_content, content))
             {
                 _content = content;
-                _s = Motion.For(content);
+                _s = Animate.For(content);
                 _surfaceS = new Surface(content, () => _surfaceTarget);
                 _glassS = new Surface(content, () => _glassTarget);
             }

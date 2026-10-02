@@ -7,26 +7,20 @@ using SukiUI.Motion;
 
 namespace SukiUI.ControlsAnimation
 {
-    // Inside this namespace the simple name "Motion" would bind to the SIBLING NAMESPACE
-    // SukiUI.Motion (a member of SukiUI) before any outer using is consulted — this alias,
-    // declared in the namespace body, restores the class binding so descriptions read
-    // Motion.Popup(...) exactly as written in Plan.md.
-    using Motion = SukiUI.Motion.Motion;
-
     /// <summary>
     /// The template-popup behavior described declaratively over the SukiUI.Motion engine
     /// (see SukiUI.Motion/Plan.md): open = springs to full scale + opacity fade +
     /// velocity-driven motion blur + staggered item cascade; close = partial collapse
     /// springs + dissolve blur, the real IsOpen=false flipping only at settle. Fully
     /// configured from XAML through attached properties — Enable (from
-    /// <see cref="SukiMotion{TSelf}"/>), Preset, PopupPart, and the host's OpenProperty —
+    /// <see cref="MotionBehavior{TSelf}"/>), Preset, PopupPart, and the host's OpenProperty —
     /// profile resolved per open/close through <see cref="SukiAnimationTheme"/> so a live
     /// switch applies to the NEXT transition. Contract: a settable bool-typed open
     /// property on the host and a named template Popup the motion owns (no binding on its
     /// IsOpen); root and items parts follow the PART_LayoutTransform /
     /// PART_ItemsPresenter convention.
     /// </summary>
-    public class SukiPopupMotion : SukiMotion<SukiPopupMotion>
+    public class SukiPopupMotion : MotionBehavior<SukiPopupMotion>
     {
         public static readonly AttachedProperty<SukiPopupPreset> PresetProperty =
             AvaloniaProperty.RegisterAttached<SukiPopupMotion, TemplatedControl, SukiPopupPreset>(
@@ -95,7 +89,7 @@ namespace SukiUI.ControlsAnimation
             bool HostIsOpen() => (bool)element.GetValue(openProperty);
             void SetOpen(bool open) => element.SetValue(openProperty, open);
 
-            var popup = Motion.For(element).Popup(
+            var popup = Animate.For(element).Popup(
                 popupPart: GetPopupPart(element),
                 rootPart: "PART_LayoutTransform",
                 itemsPart: "PART_ItemsPresenter",

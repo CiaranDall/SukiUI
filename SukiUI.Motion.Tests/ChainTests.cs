@@ -15,7 +15,7 @@ public class ChainTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var scale = Motion.For(border).Scale;
+        var scale = Animate.For(border).Scale;
         int calls = 0;
 
         var chain = scale.To(0.9).Over(TimeSpan.FromMilliseconds(160))

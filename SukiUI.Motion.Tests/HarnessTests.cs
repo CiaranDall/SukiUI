@@ -17,7 +17,7 @@ public class HarnessTests
         using var h = new MotionHarness(border);
         var seen = new List<TimeSpan>();
 
-        using var token = SukiTicker.Subscribe(border, now =>
+        using var token = MotionTicker.Subscribe(border, now =>
         {
             seen.Add(now);
             border.Opacity = 1.0 - seen.Count * 0.01;
@@ -33,7 +33,7 @@ public class HarnessTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var scale = Motion.For(border).Scale;
+        var scale = Animate.For(border).Scale;
 
         scale.Offer(scale.To(2.0).Over(TimeSpan.FromMilliseconds(160)));
         h.Frames(5);
@@ -57,9 +57,9 @@ public class HarnessRealTimeTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var scale = Motion.For(border).Scale;
+        var scale = Animate.For(border).Scale;
         bool stalled = false;
-        using var stall = SukiTicker.Subscribe(border, _ =>
+        using var stall = MotionTicker.Subscribe(border, _ =>
         {
             if (stalled)
                 return;

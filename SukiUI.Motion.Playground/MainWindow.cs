@@ -89,8 +89,8 @@ public sealed class MainWindow : Window
 
     private void UpdateStats()
     {
-        long dispatches = SukiMotionStats.DispatchCount;
-        double ms = SukiMotionStats.TotalDispatchMs;
+        long dispatches = MotionStats.DispatchCount;
+        double ms = MotionStats.TotalDispatchMs;
         double perSecond = (dispatches - _lastDispatches) * 2.0;
         double avg = dispatches > _lastDispatches ? (ms - _lastDispatchMs) / (dispatches - _lastDispatches) : 0;
         _lastDispatches = dispatches;

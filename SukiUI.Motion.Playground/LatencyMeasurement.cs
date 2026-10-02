@@ -38,7 +38,7 @@ internal static class LatencyMeasurement
         window.Height = 140;
 
         var report = new StringBuilder();
-        var x = Motion.For(box).TranslateX;
+        var x = Animate.For(box).TranslateX;
         x.Track(0);
         x.Track(300);
 
@@ -96,7 +96,7 @@ internal static class LatencyMeasurement
                 raf.RequestAnimationFrame(OnRaf);
 
                 handler.Records.Clear();
-                using var sub = SukiTicker.Subscribe(box, now =>
+                using var sub = MotionTicker.Subscribe(box, now =>
                 {
                     double ms = now.TotalMilliseconds;
                     dispatches.Add(ms);
@@ -187,8 +187,8 @@ internal static class LatencyMeasurement
 
         public override void OnAnimationFrameUpdate()
         {
-            // The server frame's start, on the same clock as the ticker (SukiTicker.Now is a Stopwatch read).
-            Records.Enqueue((SukiTicker.Now.TotalMilliseconds, _lastPose));
+            // The server frame's start, on the same clock as the ticker (MotionTicker.Now is a Stopwatch read).
+            Records.Enqueue((MotionTicker.Now.TotalMilliseconds, _lastPose));
             RegisterForNextAnimationFrameUpdate();
         }
 

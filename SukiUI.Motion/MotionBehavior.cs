@@ -14,8 +14,8 @@ namespace SukiUI.Motion
     /// public surface: the XAML and programmatic entry points; the description
     /// vocabulary itself stays internal where it can.
     /// </summary>
-    public abstract class SukiMotion<TSelf>
-        where TSelf : SukiMotion<TSelf>, new()
+    public abstract class MotionBehavior<TSelf>
+        where TSelf : MotionBehavior<TSelf>, new()
     {
         // One stateless description instance per closed motion — the handler is static,
         // Attach is the motion's (instance) declaration.
@@ -27,7 +27,7 @@ namespace SukiUI.Motion
         private static readonly AttachedProperty<Mover?> MoverProperty =
             AvaloniaProperty.RegisterAttached<TSelf, AvaloniaObject, Mover?>("Mover");
 
-        static SukiMotion()
+        static MotionBehavior()
         {
             EnableProperty.Changed.AddClassHandler<AvaloniaObject>(OnEnableChanged);
         }

@@ -24,7 +24,7 @@ public class StylePriorityTests
         {
             Setters = { new Setter(Visual.OpacityProperty, 0.4) },
         });
-        var opacity = Motion.For(border).Opacity;
+        var opacity = Animate.For(border).Opacity;
 
         opacity.Offer(opacity.To(1.0).Over(TimeSpan.FromMilliseconds(100)));
         h.Run(TimeSpan.FromMilliseconds(200)); // played out, channel idle

@@ -17,7 +17,7 @@ namespace SukiUI.Demo.Features.Helpers
     /// <summary>
     /// Benchmark harness comparing the Suki press motion (shared ticker loop, the real
     /// SukiPressMotion description driven programmatically through
-    /// <see cref="SukiMotion{TSelf}.Simulate(AvaloniaObject, Avalonia.Interactivity.RoutedEvent)"/>)
+    /// <see cref="MotionBehavior{TSelf}.Simulate(AvaloniaObject, Avalonia.Interactivity.RoutedEvent)"/>)
     /// against plain XAML transitions (:checked -&gt; scale(0.96) on a ToggleButton, native
     /// TransformOperationsTransition). One grid of buttons; every button is "clicked"
     /// constantly (120ms press every 800ms, uniformly staggered so gestures flow
@@ -170,7 +170,7 @@ namespace SukiUI.Demo.Features.Helpers
             CountSelector.IsEnabled = false;
             GenerateButton.IsEnabled = false;
 
-            _runStart = SukiMotionStats.Now;
+            _runStart = MotionStats.Now;
             _lastFrame = _runStart;
             _lastUiRefresh = _runStart;
             _frames = 0;
@@ -182,7 +182,7 @@ namespace SukiUI.Demo.Features.Helpers
             _gc0 = GC.CollectionCount(0);
             _gc1 = GC.CollectionCount(1);
             _gc2 = GC.CollectionCount(2);
-            _engMsBase = SukiMotionStats.TotalDispatchMs;
+            _engMsBase = MotionStats.TotalDispatchMs;
 
             // Uniform stagger: with N buttons, a click starts every CycleMs/N ms.
             double stride = CycleMs / _buttons.Count;
@@ -193,7 +193,7 @@ namespace SukiUI.Demo.Features.Helpers
 
             // Kick-start: engaging the first buttons invalidates the scene, which
             // schedules the frame the RAF monitor (and the animation) will ride on.
-            Drive(SukiMotionStats.Now);
+            Drive(MotionStats.Now);
             LiveText.Text = "run in progress…";
 
             _rafLoop = true;
@@ -217,7 +217,7 @@ namespace SukiUI.Demo.Features.Helpers
                 _process.Refresh();
                 _lastProcCpu = _process.TotalProcessorTime;
                 _lastUiCpu = ReadUiThreadCpu() ?? default;
-                _lastCpuSampleAt = SukiMotionStats.Now;
+                _lastCpuSampleAt = MotionStats.Now;
 
                 _cpuSampler = new DispatcherTimer(DispatcherPriority.Background)
                 {
@@ -232,14 +232,14 @@ namespace SukiUI.Demo.Features.Helpers
                 _cpuSampler = null;
             }
 
-            _hbLast = SukiMotionStats.Now;
+            _hbLast = MotionStats.Now;
             _hb = new DispatcherTimer(DispatcherPriority.Background)
             {
                 Interval = TimeSpan.FromMilliseconds(100)
             };
             _hb.Tick += (_, _) =>
             {
-                var t = SukiMotionStats.Now;
+                var t = MotionStats.Now;
                 double lag = Math.Max((t - _hbLast).TotalMilliseconds - 100.0, 0.0);
                 _hbLagSum += lag;
                 if (lag > _hbLagMax) _hbLagMax = lag;
@@ -256,7 +256,7 @@ namespace SukiUI.Demo.Features.Helpers
             try
             {
                 _process.Refresh();
-                var now = SukiMotionStats.Now;
+                var now = MotionStats.Now;
                 double elapsedMs = (now - _lastCpuSampleAt).TotalMilliseconds;
                 if (elapsedMs <= 0)
                     return;
@@ -311,7 +311,7 @@ namespace SukiUI.Demo.Features.Helpers
         {
             if (!_rafLoop)
                 return;
-            var now = SukiMotionStats.Now;
+            var now = MotionStats.Now;
 
             // Frame-pacing stats (impartial loop — same measurement for both engines).
             double dMs = (now - _lastFrame).TotalMilliseconds;
@@ -437,7 +437,7 @@ namespace SukiUI.Demo.Features.Helpers
             // Engine cost per rendered frame — only observable in suki mode (the native
             // XAML engine runs inside Avalonia's own clock).
             string engine = !_xamlMode && _frames > 1
-                ? $"eng {(SukiMotionStats.TotalDispatchMs - _engMsBase) / _frames,4:0.00}ms/f"
+                ? $"eng {(MotionStats.TotalDispatchMs - _engMsBase) / _frames,4:0.00}ms/f"
                 : "eng  —";
 
             double uiPct = _uiCpuSamples > 0 ? _uiCpuSumPct / _uiCpuSamples : double.NaN;

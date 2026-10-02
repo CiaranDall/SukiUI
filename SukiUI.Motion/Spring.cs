@@ -43,7 +43,7 @@ namespace SukiUI.Motion
     /// numeric behavior of the proven engine, so trajectories settle to the same poses at the
     /// same substep cadence. Stiff or heavily damped springs get finer substeps: the scheme
     /// is only stable while omega·h and decay·h stay small (both kept ≤ 1 here). Time base
-    /// is caller-provided <c>dt</c>, always derived from <see cref="SukiTicker"/> so every
+    /// is caller-provided <c>dt</c>, always derived from <see cref="MotionTicker"/> so every
     /// spring shares the same monotonic clock.
     /// </summary>
     internal static class Integrator

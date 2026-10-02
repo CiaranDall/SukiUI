@@ -23,7 +23,7 @@ public sealed class TransformReplaceScene : Scene
     protected override Control Build()
     {
         var box = Box("#3F7FBF");
-        var s = Motion.For(box);
+        var s = Animate.For(box);
         bool shifted = false, rotated = false, scaled = false;
         var ease = new CubicEaseOut();
         var readout = new TextBlock { FontFamily = FontFamily.Parse("Consolas, monospace") };
@@ -94,7 +94,7 @@ public sealed class SharedEffectScene : Scene
             },
         });
 
-        var s = Motion.For(cards[0]);
+        var s = Animate.For(cards[0]);
         bool deep = false;
         return Column(
             Btn("Анимировать тень первой карточки", () =>
@@ -129,7 +129,7 @@ public sealed class StylePriorityScene : Scene
         {
             Setters = { new Avalonia.Styling.Setter(Avalonia.Visual.OpacityProperty, 0.4) },
         });
-        var opacity = Motion.For(box).Opacity;
+        var opacity = Animate.For(box).Opacity;
         var state = new TextBlock();
         var toggle = new ToggleButton { Content = "Класс dim (Opacity 0.4 в стиле)" };
         toggle.IsCheckedChanged += (_, _) =>

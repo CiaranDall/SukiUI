@@ -15,7 +15,7 @@ public class ArbitrationTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var scale = Motion.For(border).Scale;
+        var scale = Animate.For(border).Scale;
         var enter = scale.To(1.1).Spring(Hover);
         var exit = scale.To(1.0).Spring(Hover);
 
@@ -33,7 +33,7 @@ public class ArbitrationTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var scale = Motion.For(border).Scale;
+        var scale = Animate.For(border).Scale;
         var enter = scale.To(1.1).Spring(Hover);
         var exit = scale.To(1.0).Spring(Hover);
 
@@ -55,7 +55,7 @@ public class ArbitrationTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var scale = Motion.For(border).Scale;
+        var scale = Animate.For(border).Scale;
 
         var choreography = new Choreography().And(scale.To(1.5).Spring(Hover));
         choreography.Start(border);
@@ -76,7 +76,7 @@ public class ArbitrationTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var scale = Motion.For(border).Scale;
+        var scale = Animate.For(border).Scale;
         int advances = 0;
         var counted = new CountingProgram(scale, () => advances++);
 
@@ -89,7 +89,7 @@ public class ArbitrationTests
     }
 
     /// <summary>Records every Advance; never finishes on its own.</summary>
-    private sealed class CountingProgram : Program
+    private sealed class CountingProgram : MotionProgram
     {
         private readonly Action _onAdvance;
 
@@ -116,7 +116,7 @@ public class ArbitrationTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var scale = Motion.For(border).Scale;
+        var scale = Animate.For(border).Scale;
         var relax = scale.To(1.1).Spring(Hover);
         scale.Track(1.0); // the rest pose in the clamp window, as the press behavior has (see bug 12)
 

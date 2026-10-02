@@ -58,7 +58,7 @@ public class LifecycleTests
         Assert.Equal(1, CountingMotion.Fired);
     }
 
-    private sealed class CountingMotion : SukiMotion<CountingMotion>
+    private sealed class CountingMotion : MotionBehavior<CountingMotion>
     {
         public static int Fired;
 

@@ -17,7 +17,7 @@ public class PopupPendingTests
     {
         bool wantOpen = false;
         var combo = new ComboBox(); // template not applied yet
-        var popup = Motion.For(combo).Popup(
+        var popup = Animate.For(combo).Popup(
             popupPart: "PART_Popup", rootPart: "PopupBorder", itemsPart: "PART_ItemsPresenter",
             isHostOpen: () => wantOpen);
 
@@ -51,7 +51,7 @@ public class PopupPendingTests
         bool stageReady = false, wantOpen = false;
         var combo = new ComboBox();
         using var h = new MotionHarness(combo);
-        var popup = Motion.For(combo).Popup(
+        var popup = Animate.For(combo).Popup(
             resolvePopup: () => FindPopup(combo),
             resolveRoot: p => stageReady ? p?.Child as Control : null,
             resolveItems: _ => null,

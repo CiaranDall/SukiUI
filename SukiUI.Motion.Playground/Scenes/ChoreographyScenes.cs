@@ -33,7 +33,7 @@ public sealed class ChoreographyRestartScene : Scene
         int settles = 0;
         bool on = false;
 
-        var x = Motion.For(knob).TranslateX;
+        var x = Animate.For(knob).TranslateX;
         var snap = new Choreography()
             .And(x.To(() => on ? 190 : 0).Spring(new Spring(Omega: 18, Decay: 12)))
             .Then(() => counter.Text = $"Завершений (settle): {++settles}");
@@ -65,7 +65,7 @@ public sealed class FrozenChannelScene : Scene
     protected override Control Build()
     {
         var box = Box("#5C6BC0", 80);
-        var scale = Motion.For(box).Scale;
+        var scale = Animate.For(box).Scale;
         var trace = new TraceView { Label = "Scale", Min = 0.9, Max = 1.6 }.Follow(() => scale.Value);
         var stage = new Border { Padding = new Avalonia.Thickness(50), Child = box, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
 

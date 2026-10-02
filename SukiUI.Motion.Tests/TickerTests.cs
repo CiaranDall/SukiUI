@@ -18,16 +18,16 @@ public class TickerTests
         second.Show();
         try
         {
-            var sa = Motion.For(a).Scale;
-            var sb = Motion.For(b).Scale;
+            var sa = Animate.For(a).Scale;
+            var sb = Animate.For(b).Scale;
             sa.Offer(sa.To(2.0).Over(TimeSpan.FromMilliseconds(320)));
             sb.Offer(sb.To(2.0).Over(TimeSpan.FromMilliseconds(320)));
             h.Frame();
 
-            long before = SukiTicker.DispatchCount;
+            long before = MotionTicker.DispatchCount;
             h.Frames(10);
 
-            Assert.Equal(20, SukiTicker.DispatchCount - before);
+            Assert.Equal(20, MotionTicker.DispatchCount - before);
             Assert.Equal(sa.Value, sb.Value); // same frame time in both windows
         }
         finally

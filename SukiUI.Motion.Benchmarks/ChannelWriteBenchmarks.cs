@@ -25,7 +25,7 @@ public class ChannelWriteBenchmarks
         var box = new Border { Width = 40, Height = 40, Background = Brushes.Black };
         _window = new Window { Width = 200, Height = 200, Content = box };
         _window.Show();
-        var s = Motion.For(box);
+        var s = Animate.For(box);
         (_translate, _scale, _opacity, _blur) = (s.TranslateX, s.Scale, s.Opacity, s.Blur);
         _translate.Write(1);
         _scale.Write(1);

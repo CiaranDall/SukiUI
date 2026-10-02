@@ -17,7 +17,7 @@ public class DetachedHostTests
     public void Choreography_on_a_detached_owner_completes_at_once()
     {
         var border = new Border(); // never attached
-        var s = Motion.For(border);
+        var s = Animate.For(border);
         int settled = 0;
 
         var choreography = new Choreography()
@@ -42,7 +42,7 @@ public class DetachedHostTests
         var combo = new ComboBox();
         using var h = new MotionHarness(combo);
         Popup? FindPopup() => combo.GetTemplateDescendants().OfType<Popup>().FirstOrDefault();
-        var popup = Motion.For(combo).Popup(
+        var popup = Animate.For(combo).Popup(
             resolvePopup: FindPopup,
             resolveRoot: p => p?.Child as Control,
             resolveItems: _ => null,
@@ -54,7 +54,7 @@ public class DetachedHostTests
         Assert.NotNull(FindPopup()?.Child);
         Assert.Null(TopLevel.GetTopLevel(combo));
 
-        var root = Motion.For(combo); // any channel works for the repro
+        var root = Animate.For(combo); // any channel works for the repro
         var error = Record.Exception(() =>
             popup.Play(popup.Show().And(root.Opacity.To(1.0).Over(TimeSpan.FromMilliseconds(100)))));
 

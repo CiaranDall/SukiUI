@@ -71,7 +71,7 @@ namespace SukiUI.Motion
 
         public Mover OnEvent<TArgs>(
             RoutedEvent<TArgs> ev,
-            Program program,
+            MotionProgram program,
             RoutingStrategies strategy = RoutingStrategies.Direct | RoutingStrategies.Bubble,
             bool handledEventsToo = false,
             Func<AvaloniaObject?>? source = null)
@@ -101,7 +101,7 @@ namespace SukiUI.Motion
                 Source: null));
         }
 
-        public Mover OnPropertyChanged(AvaloniaProperty property, Program program, object? when = null)
+        public Mover OnPropertyChanged(AvaloniaProperty property, MotionProgram program, object? when = null)
             => OnPropertyChanged(property, Fire(program), when);
 
         /// <summary>The escape hatch for plain CLR events: the closure receives the
@@ -121,7 +121,7 @@ namespace SukiUI.Motion
 
         /// <summary>Fires every trigger registered for <paramref name="ev"/> as if the
         /// event had been raised — the programmatic drive behind
-        /// <see cref="SukiMotion{TSelf}.Simulate(AvaloniaObject, Avalonia.Interactivity.RoutedEvent)"/>
+        /// <see cref="MotionBehavior{TSelf}.Simulate(AvaloniaObject, Avalonia.Interactivity.RoutedEvent)"/>
         /// (no pointer input can be synthesized in Avalonia). Real events keep working
         /// alongside.</summary>
         internal void Simulate(RoutedEvent ev)
@@ -185,7 +185,7 @@ namespace SukiUI.Motion
 
         // ---- engine ----------------------------------------------------------------------
 
-        private static Action Fire(Program program) => () => program.Channel?.Offer(program);
+        private static Action Fire(MotionProgram program) => () => program.Channel?.Offer(program);
 
         private Mover Add(Trigger trigger)
         {

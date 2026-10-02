@@ -6,21 +6,15 @@ using SukiUI.Motion;
 
 namespace SukiUI.ControlsAnimation
 {
-    // Inside this namespace, the simple name "Motion" would bind to the SIBLING NAMESPACE
-    // SukiUI.Motion (a member of SukiUI) before any outer using is consulted — this alias,
-    // declared in the namespace body, restores the class binding so descriptions read
-    // Motion.For(...) exactly as written in Plan.md.
-    using Motion = SukiUI.Motion.Motion;
-
     /// <summary>
     /// The button/combobox press behavior described declaratively over the SukiUI.Motion
     /// engine (see SukiUI.Motion/Plan.md): channels → named trajectories → trigger wiring.
-    /// Enable (from <see cref="SukiMotion{TSelf}"/>)/Preset/PressDepth attached properties,
+    /// Enable (from <see cref="MotionBehavior{TSelf}"/>)/Preset/PressDepth attached properties,
     /// profile resolved per gesture through <see cref="SukiAnimationTheme"/> so a live
     /// switch applies to the NEXT gesture — with every line of ticker/integration/transform
     /// plumbing living in the engine instead of an imperative physics class.
     /// </summary>
-    public class SukiPressMotion : SukiMotion<SukiPressMotion>
+    public class SukiPressMotion : MotionBehavior<SukiPressMotion>
     {
         public static readonly AttachedProperty<SukiPressPreset> PresetProperty =
             AvaloniaProperty.RegisterAttached<SukiPressMotion, InputElement, SukiPressPreset>(
@@ -53,7 +47,7 @@ namespace SukiUI.ControlsAnimation
                 return null;
             }
 
-            var scale = Motion.For(element).Scale;
+            var scale = Animate.For(element).Scale;
             
 
             // Per-gesture profile snapshot (resolved when each program starts — a live
@@ -66,7 +60,7 @@ namespace SukiUI.ControlsAnimation
             }
 
             var hoverEase = new CubicEaseOut();
-            var pressEase = new SukiEaseElasticIn { Damping = 2.5, Frequency = 3 };
+            var pressEase = new DampedEaseIn { Damping = 2.5, Frequency = 3 };
             var deepEase = new LinearEasing();
 
             var hoverIn = scale

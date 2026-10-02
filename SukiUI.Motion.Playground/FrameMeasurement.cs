@@ -8,7 +8,7 @@ namespace SukiUI.Motion.Playground;
 
 /// <summary>
 /// Unattended frame-timing measurement of scene C1 (engine side): records every engine
-/// dispatch (SukiTicker time) and every half-cycle start, then writes a plain-text report.
+/// dispatch (MotionTicker time) and every half-cycle start, then writes a plain-text report.
 /// The composition side cannot be observed from the UI thread (ENGINEERING_NOTES §7.5);
 /// its half-cycle is exactly the configured duration by construction (server clock).
 /// </summary>
@@ -27,7 +27,7 @@ internal static class FrameMeasurement
         {
             UiThreadStallScene.HalfCycleStarted = now => halfCycles.Add(now.TotalMilliseconds);
             // Rides the dispatches the choreography already causes (it writes every frame).
-            probe = SukiTicker.Subscribe(UiThreadStallScene.EngineBox!, now => dispatches.Add(now.TotalMilliseconds));
+            probe = MotionTicker.Subscribe(UiThreadStallScene.EngineBox!, now => dispatches.Add(now.TotalMilliseconds));
 
             DispatcherTimer.RunOnce(() =>
             {

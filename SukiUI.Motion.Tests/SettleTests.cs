@@ -13,12 +13,12 @@ public class SettleTests
 {
     private static long FramesUntilIdle(MotionHarness h, TimeSpan budget)
     {
-        long start = SukiTicker.DispatchCount, last = start;
+        long start = MotionTicker.DispatchCount, last = start;
         int quiet = 0;
         for (int i = 0; i < budget.TotalMilliseconds / MotionHarness.FrameMs && quiet < 10; i++)
         {
             h.Frame();
-            long now = SukiTicker.DispatchCount;
+            long now = MotionTicker.DispatchCount;
             quiet = now == last ? quiet + 1 : 0;
             last = now;
         }
@@ -32,7 +32,7 @@ public class SettleTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var x = Motion.For(border).TranslateX;
+        var x = Animate.For(border).TranslateX;
         x.Track(0);
         x.Track(300);
 
@@ -49,7 +49,7 @@ public class SettleTests
     {
         var border = new Border();
         using var h = new MotionHarness(border);
-        var scale = Motion.For(border).Scale;
+        var scale = Animate.For(border).Scale;
 
         scale.Offer(scale.To(0.92).Spring(new Spring(Omega: 20, Decay: 40))); // the popup's closed scale
         FramesUntilIdle(h, TimeSpan.FromSeconds(2));

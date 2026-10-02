@@ -21,7 +21,7 @@ public class TransformBlockTests
     {
         var border = new Border { Width = 100, Height = 100 };
         using var h = new MotionHarness(border);
-        var channel = ChannelByName(Motion.For(border), channelName);
+        var channel = ChannelByName(Animate.For(border), channelName);
 
         channel.Write(10);
         var before = border.RenderTransform!.Value;
@@ -39,7 +39,7 @@ public class TransformBlockTests
     {
         var border = new Border { Width = 100, Height = 100 };
         using var h = new MotionHarness(border);
-        var s = Motion.For(border);
+        var s = Animate.For(border);
 
         s.TranslateX.Write(15);
         s.Rotate.Write(30);

@@ -1,8 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
-// The engine's Program collides with every app's Program entry class (see ENGINEERING_NOTES).
-using MotionProgram = SukiUI.Motion.Program;
 
 namespace SukiUI.Motion.Playground.Scenes;
 
@@ -23,7 +21,7 @@ public sealed class SpringHoverScene : Scene
     protected override Control Build()
     {
         var box = Box("#E07B39", 90);
-        var scale = Motion.For(box).Scale;
+        var scale = Animate.For(box).Scale;
         var enter = scale.To(1.25).Spring(Bouncy);
         var exit = scale.To(1.0).Spring(Bouncy);
         // A Mover wires triggers directly: the public, XAML-free entry point.
@@ -61,7 +59,7 @@ public sealed class LoneSpringScene : Scene
             var box = Box("#2E9E6B", 70);
             holder.Child = box; // attached synchronously: the channel can start right away
             trace.Clear();
-            current = Motion.For(box).Scale;
+            current = Animate.For(box).Scale;
             current.Offer(make(current));
         }
 
@@ -89,7 +87,7 @@ public sealed class StiffSpringScene : Scene
     protected override Control Build()
     {
         var trace = new TraceView { Label = "probe", Min = 0.8, Max = 1.4 };
-        var channel = Motion.For(trace).Property(TraceView.ValueProperty);
+        var channel = Animate.For(trace).Property(TraceView.ValueProperty);
         var error = new TextBlock { Foreground = Avalonia.Media.Brushes.DarkRed, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
 
         void Run(double omega, double decay)
@@ -122,9 +120,9 @@ public sealed class StiffSpringScene : Scene
 public sealed class OverdampedEaseScene : Scene
 {
     public override string BugId => "Баг 11";
-    public override string Title => "SukiSpringEaseOut при ζ > 1";
+    public override string Title => "SpringEaseOut при ζ > 1";
     public override string Steps =>
-        "Сплошные линии — SukiSpringEaseOut движка, пунктир — точное решение уравнения пружины (считается здесь же). " +
+        "Сплошные линии — SpringEaseOut движка, пунктир — точное решение уравнения пружины (считается здесь же). " +
         "«Проиграть» анимирует четыре полоски теми же easing за 900 мс.";
     public override string Before =>
         "При ζ > 1 вместо передемпфированного решения считалась критически демпфированная кривая: " +
@@ -153,11 +151,11 @@ public sealed class OverdampedEaseScene : Scene
             {
                 for (int i = 0; i < bars.Length; i++)
                 {
-                    var x = Motion.For(bars[i]).TranslateX;
+                    var x = Animate.For(bars[i]).TranslateX;
                     var (_, omega, decay) = Curves[i];
                     x.Offer(x.Pose(0));
                     x.Offer(x.To(500).Over(TimeSpan.FromMilliseconds(900))
-                        .Ease(new SukiSpringEaseOut { Omega = omega, Decay = decay }));
+                        .Ease(new SpringEaseOut { Omega = omega, Decay = decay }));
                 }
             }),
             lanes);
@@ -188,7 +186,7 @@ internal sealed class EaseChart : Control
         foreach (var (color, omega, decay) in _curves)
         {
             var brush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(color));
-            var engine = new SukiSpringEaseOut { Omega = omega, Decay = decay };
+            var engine = new SpringEaseOut { Omega = omega, Decay = decay };
             double end = Exact(omega, decay, 1.0);
             Draw(context, new Avalonia.Media.Pen(brush, 2), t => engine.Ease(t), Px, Py);
             Draw(context, new Avalonia.Media.Pen(brush, 1.5) { DashStyle = Avalonia.Media.DashStyle.Dash },

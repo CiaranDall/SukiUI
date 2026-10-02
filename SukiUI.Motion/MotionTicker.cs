@@ -34,7 +34,7 @@ namespace SukiUI.Motion
     /// Everything here runs on the UI thread (the same guarantee a DispatcherTimer gave).
     /// </para>
     /// </remarks>
-    public static class SukiTicker
+    public static class MotionTicker
     {
         // Safety switch: set to false to drive every TopLevel with one shared
         // 16ms DispatcherTimer instead of RequestAnimationFrame. (static readonly, not
@@ -74,17 +74,6 @@ namespace SukiUI.Motion
         public static TimeSpan Now => ClockOverride?.Invoke()
             ?? TimeSpan.FromSeconds((Stopwatch.GetTimestamp() - Epoch) * SecondsPerTick);
 
-        /// <summary>Raw high-resolution timestamp (cheap); compare with the elapsed helpers below.</summary>
-        public static long Timestamp => ClockOverride is { } clock
-            ? Epoch + (long)(clock().TotalSeconds * Stopwatch.Frequency)
-            : Stopwatch.GetTimestamp();
-
-        /// <summary>Seconds elapsed since a <see cref="Timestamp"/> snapshot.</summary>
-        public static double ElapsedSeconds(long then) => (Timestamp - then) * SecondsPerTick;
-
-        /// <summary>Milliseconds elapsed since a <see cref="Timestamp"/> snapshot.</summary>
-        public static double ElapsedMilliseconds(long then) => ElapsedSeconds(then) * 1000.0;
-
         /// <summary>
         /// Register a per-frame callback driven by the TopLevel hosting <paramref name="visual"/>.
         /// The callback receives <see cref="Now"/> and stays subscribed until the returned token
@@ -97,7 +86,7 @@ namespace SukiUI.Motion
                 throw new ArgumentNullException(nameof(onFrame));
             var topLevel = TopLevel.GetTopLevel(visual)
                 ?? throw new InvalidOperationException(
-                    "SukiTicker: the visual is not attached to a visual tree yet (no TopLevel).");
+                    "MotionTicker: the visual is not attached to a visual tree yet (no TopLevel).");
             var state = States.GetOrCreateValue(topLevel);
             return state.Add(topLevel, onFrame);
         }
@@ -183,7 +172,7 @@ namespace SukiUI.Motion
                     catch (Exception ex)
                     {
                         token.Removed = true;
-                        Debug.WriteLine($"SukiTicker: subscriber dropped after throwing: {ex.Message}");
+                        Debug.WriteLine($"MotionTicker: subscriber dropped after throwing: {ex.Message}");
                     }
                 }
                 _totalDispatchMs += (Stopwatch.GetTimestamp() - sw) * SecondsPerTick * 1000.0;

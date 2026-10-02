@@ -8,10 +8,6 @@ using SukiUI.Theme;
 
 namespace SukiUI.ControlsAnimation
 {
-    // The SukiPressMotion precedent: the simple name "Motion" would bind to the
-    // sibling namespace — this alias restores the class binding.
-    using Motion = SukiUI.Motion.Motion;
-
     /// <summary>
     /// The TextBox typing-glow behavior described declaratively over the SukiUI.Motion
     /// engine: the primary border overlay is a STRUCK SPRING. Its resting point is the
@@ -21,7 +17,7 @@ namespace SukiUI.ControlsAnimation
     /// discrete steps and no timers. Renders through an overlay Border independent of
     /// GlassCardBorder, so it works identically in light and dark themes.
     /// </summary>
-    public class SukiTypingMotion : SukiMotion<SukiTypingMotion>
+    public class SukiTypingMotion : MotionBehavior<SukiTypingMotion>
     {
         internal override Mover? Attach(AvaloniaObject owner)
         {
@@ -31,7 +27,7 @@ namespace SukiUI.ControlsAnimation
                 return null;
             }
 
-            var energy = Motion.For(box).Property(TextBoxExtensions.TypingIntensityProperty);
+            var energy = Animate.For(box).Property(TextBoxExtensions.TypingIntensityProperty);
 
             // The full legitimate pose range: kicks legitimately push the pose above the
             // 0.5 rest point, and the channel's defensive pose-clamp window must never

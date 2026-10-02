@@ -5,7 +5,7 @@ using Avalonia.Threading;
 namespace SukiUI.Motion.Tests;
 
 /// <summary>
-/// Deterministic frame driver: installs a virtual clock into <see cref="SukiTicker"/> and
+/// Deterministic frame driver: installs a virtual clock into <see cref="MotionTicker"/> and
 /// pumps render frames by hand — each frame advances virtual time, ticks the headless
 /// render timer (which services RequestAnimationFrame) and flushes the dispatcher.
 /// </summary>
@@ -17,7 +17,7 @@ public sealed class MotionHarness : IDisposable
     {
         // Start away from zero so "time since epoch" arithmetic never degenerates.
         Now = TimeSpan.FromSeconds(10);
-        SukiTicker.ClockOverride = () => Now;
+        MotionTicker.ClockOverride = () => Now;
         Window = new Window { Width = 400, Height = 300, Content = content };
         Window.Show();
         Flush();
@@ -59,6 +59,6 @@ public sealed class MotionHarness : IDisposable
         Frames(3);
         Window.Close();
         Flush();
-        SukiTicker.ClockOverride = null;
+        MotionTicker.ClockOverride = null;
     }
 }

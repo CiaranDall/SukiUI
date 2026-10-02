@@ -12,10 +12,6 @@ using SukiUI.Motion;
 
 namespace SukiUI.ControlsAnimation
 {
-    // Inside this namespace the simple name "Motion" would bind to the SIBLING NAMESPACE
-    // SukiUI.Motion before any outer using is consulted — same alias as SukiPopupMotion.
-    using Motion = SukiUI.Motion.Motion;
-
     /// <summary>
     /// The ContextMenu flavor of the popup motion — same feel as the ComboBox drop-down
     /// (<see cref="SukiPopupMotion"/>, the choreographies shared through
@@ -29,7 +25,7 @@ namespace SukiUI.ControlsAnimation
     /// <see cref="SukiPopupPreset.ContextMenu"/> — an attached Preset will earn its place
     /// when a second menu feel exists.
     /// </summary>
-    public class SukiContextMenuMotion : SukiMotion<SukiContextMenuMotion>
+    public class SukiContextMenuMotion : MotionBehavior<SukiContextMenuMotion>
     {
         /// <summary>
         /// The popup behavior description. Null (Enable = logged no-op) on anything that is
@@ -52,7 +48,7 @@ namespace SukiUI.ControlsAnimation
             // in logically — resolve it as the host's logical parent; the animated root
             // and the items are the host's own template parts (the Suki ContextMenu
             // template already follows the PART_ convention).
-            var popup = Motion.For(menu).Popup(
+            var popup = Animate.For(menu).Popup(
                 resolvePopup: () => menu.GetLogicalParent() as Popup,
                 resolveRoot: _ => menu.GetTemplateDescendants()
                     .OfType<Control>()

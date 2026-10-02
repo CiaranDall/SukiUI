@@ -9,7 +9,7 @@ namespace SukiUI.Motion.Playground;
 /// <summary>
 /// A scrolling plot of one value over the last few seconds. Either animate its
 /// <see cref="ValueProperty"/> directly through a motion channel
-/// (<c>Motion.For(trace).Property(TraceView.ValueProperty)</c>), or <see cref="Follow"/>
+/// (<c>Animate.For(trace).Property(TraceView.ValueProperty)</c>), or <see cref="Follow"/>
 /// any value (e.g. <c>channel.Value</c>). Out-of-range samples are drawn at the edge and
 /// the raw number is printed — NaN and 1e128 stay readable.
 /// </summary>
@@ -64,7 +64,7 @@ public sealed class TraceView : Control
         base.OnPropertyChanged(change);
         if (change.Property != ValueProperty)
             return;
-        double now = SukiMotionStats.Now.TotalSeconds;
+        double now = MotionStats.Now.TotalSeconds;
         _samples.Add((now, Value));
         _samples.RemoveAll(s => s.T < now - WindowSeconds);
         InvalidateVisual();

@@ -51,7 +51,7 @@ public abstract class CompositionScene : Scene
 public sealed class UiThreadStallScene : CompositionScene
 {
     /// <summary>Measurement hooks (see <see cref="FrameMeasurement"/>): the engine-driven box
-    /// and every half-cycle start, in SukiTicker time.</summary>
+    /// and every half-cycle start, in MotionTicker time.</summary>
     internal static Border? EngineBox;
     internal static Action<TimeSpan>? HalfCycleStarted;
 
@@ -77,14 +77,14 @@ public sealed class UiThreadStallScene : CompositionScene
         var half = TimeSpan.FromMilliseconds(700);
 
         // Engine side: the same motion, re-armed at every settle.
-        var x = Motion.For(top).TranslateX;
+        var x = Animate.For(top).TranslateX;
         bool right = false;
         void Swing()
         {
             if (TopLevel.GetTopLevel(top) is null)
                 return; // page left: stop the loop
             right = !right;
-            HalfCycleStarted?.Invoke(SukiMotionStats.Now);
+            HalfCycleStarted?.Invoke(MotionStats.Now);
             new Choreography()
                 .And(x.To(right ? 300 : 0).Over(half).Ease(new SineEaseInOut()))
                 .Then(Swing)
