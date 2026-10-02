@@ -24,6 +24,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SukiUI.Motion\SukiUI.Motion.csproj" />
+    <!-- Smoke-tested: every scene builds and every button runs without exceptions. -->
+    <ProjectReference Include="..\SukiUI.Motion.Playground\SukiUI.Motion.Playground.csproj" />
   </ItemGroup>
 
 </Project>

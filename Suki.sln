@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SukiUI.ConditionalXAML", "S
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SukiUI.Motion.Tests", "SukiUI.Motion.Tests\SukiUI.Motion.Tests.csproj", "{A916CBB5-1C72-492B-9C3D-9525921CE4CF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SukiUI.Motion.Playground", "SukiUI.Motion.Playground\SukiUI.Motion.Playground.csproj", "{8CBE7C70-5A49-4D89-972A-6270C059CE0C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -73,6 +75,10 @@ Global
 		{A916CBB5-1C72-492B-9C3D-9525921CE4CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A916CBB5-1C72-492B-9C3D-9525921CE4CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A916CBB5-1C72-492B-9C3D-9525921CE4CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8CBE7C70-5A49-4D89-972A-6270C059CE0C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8CBE7C70-5A49-4D89-972A-6270C059CE0C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8CBE7C70-5A49-4D89-972A-6270C059CE0C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8CBE7C70-5A49-4D89-972A-6270C059CE0C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
