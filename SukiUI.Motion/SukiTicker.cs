@@ -116,13 +116,11 @@ namespace SukiUI.Motion
 
             public Token Add(TopLevel topLevel, Action<TimeSpan> onFrame)
             {
-                var token = new Token(this, onFrame);
+                var token = new Token(onFrame);
                 _pending.Add(token);
                 Arm(topLevel);
                 return token;
             }
-
-            public void Remove(Token token) => token.Removed = true; // compacted at dispatch end
 
             private void Arm(TopLevel topLevel)
             {
@@ -210,14 +208,9 @@ namespace SukiUI.Motion
             internal sealed class Token : IDisposable
             {
                 public readonly Action<TimeSpan> Callback;
-                public bool Removed;
-                private readonly TickerState _state;
+                public bool Removed; // flagged here, compacted at the end of the next dispatch
 
-                public Token(TickerState state, Action<TimeSpan> callback)
-                {
-                    _state = state;
-                    Callback = callback;
-                }
+                public Token(Action<TimeSpan> callback) => Callback = callback;
 
                 public void Dispose() => Removed = true;
             }
