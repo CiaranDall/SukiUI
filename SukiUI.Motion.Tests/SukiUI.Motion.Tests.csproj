@@ -8,6 +8,8 @@
     <IsTrimmable>false</IsTrimmable>
     <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- The composition backend prototype is [Experimental] (PLAN D21). -->
+    <NoWarn>$(NoWarn);SUKIMOTION001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
