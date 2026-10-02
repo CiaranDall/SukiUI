@@ -74,7 +74,9 @@ public sealed class MainWindow : Window
         timer.Start();
         list.SelectedIndex = 0;
 
-        if (Program.MeasureCost is { } cost)
+        if (Program.MeasureStall is { } stall)
+            StallMeasurement.Run(this, stall);
+        else if (Program.MeasureCost is { } cost)
             CostMeasurement.Run(this, cost.Path, cost.Boxes, cost.Seconds);
         else if (Program.MeasureC1 is { } measure)
         {

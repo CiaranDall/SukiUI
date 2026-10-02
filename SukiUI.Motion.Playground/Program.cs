@@ -16,6 +16,10 @@ internal static class Program
     /// prototype CPU cost (see <see cref="CostMeasurement"/>).</summary>
     internal static (string Path, int Boxes, double Seconds)? MeasureCost;
 
+    /// <summary><c>--measure-stall &lt;report path&gt;</c>: drawn vs model position after a UI-thread
+    /// stall right after a composition start (see <see cref="StallMeasurement"/>).</summary>
+    internal static string? MeasureStall;
+
     [STAThread]
     public static int Main(string[] args)
     {
@@ -31,6 +35,9 @@ internal static class Program
             double secs = c + 3 < args.Length && double.TryParse(args[c + 3], inv, out var d) ? d : 6.0;
             MeasureCost = (args[c + 1], boxes, secs);
         }
+        int st = Array.IndexOf(args, "--measure-stall");
+        if (st >= 0 && st + 1 < args.Length)
+            MeasureStall = args[st + 1];
         return BuildApp(args);
     }
 

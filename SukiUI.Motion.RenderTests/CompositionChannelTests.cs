@@ -98,6 +98,28 @@ public class CompositionChannelTests(ITestOutputHelper output)
         w.Close();
     }
 
+    // Prototype bug found by the user (scene P1): a start followed by a UI-thread stall in the same
+    // handler only reaches the compositor after the stall (commits run on the UI thread), but the
+    // curve was timed from the call — the model ran ahead of the screen by the whole stall, and
+    // completion fired early. The curve must be re-timed to the commit.
+    [AvaloniaFact]
+    public void Curve_is_retimed_to_the_commit_after_a_stall()
+    {
+        var (w, box) = Scene();
+        var x = CompositionMotion.For(box).TranslateX;
+
+        x.EaseTo(200, TimeSpan.FromMilliseconds(800));
+        Thread.Sleep(400); // same handler: nothing is committed during this
+        Pixels.Wait(TimeSpan.FromMilliseconds(200));
+
+        double model = x.Value;
+        int drawn = Left(w, "200 ms after the stall");
+        output.WriteLine($"model = {model:0.0}");
+        Assert.InRange(drawn - model, -15, 15); // without re-timing: model ≈ 150, drawn ≈ 50
+        Assert.True(x.IsAnimating, "completion must not fire before the screen got there");
+        w.Close();
+    }
+
     // Avalonia trap (ENGINEERING_NOTES §7.4): a static write equal to the client field is skipped,
     // so a plain write cannot stop an animation that started from that value...
     [AvaloniaFact]
