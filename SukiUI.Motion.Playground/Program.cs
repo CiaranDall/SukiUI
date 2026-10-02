@@ -20,6 +20,10 @@ internal static class Program
     /// stall right after a composition start (see <see cref="StallMeasurement"/>).</summary>
     internal static string? MeasureStall;
 
+    /// <summary><c>--measure-latency &lt;report path&gt; [seconds]</c>: engine pose time vs the render
+    /// thread's frames (see <see cref="LatencyMeasurement"/>).</summary>
+    internal static (string Path, double Seconds)? MeasureLatency;
+
     [STAThread]
     public static int Main(string[] args)
     {
@@ -38,6 +42,10 @@ internal static class Program
         int st = Array.IndexOf(args, "--measure-stall");
         if (st >= 0 && st + 1 < args.Length)
             MeasureStall = args[st + 1];
+        int la = Array.IndexOf(args, "--measure-latency");
+        if (la >= 0 && la + 1 < args.Length)
+            MeasureLatency = (args[la + 1], la + 2 < args.Length && double.TryParse(args[la + 2],
+                System.Globalization.CultureInfo.InvariantCulture, out var ls) ? ls : 6.0);
         return BuildApp(args);
     }
 

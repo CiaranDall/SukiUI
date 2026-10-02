@@ -74,7 +74,9 @@ public sealed class MainWindow : Window
         timer.Start();
         list.SelectedIndex = 0;
 
-        if (Program.MeasureStall is { } stall)
+        if (Program.MeasureLatency is { } latency)
+            LatencyMeasurement.Run(this, latency.Path, latency.Seconds);
+        else if (Program.MeasureStall is { } stall)
             StallMeasurement.Run(this, stall);
         else if (Program.MeasureCost is { } cost)
             CostMeasurement.Run(this, cost.Path, cost.Boxes, cost.Seconds);

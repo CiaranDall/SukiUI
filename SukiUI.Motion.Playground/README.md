@@ -63,7 +63,11 @@ git restore --worktree -- SukiUI.Motion
 dotnet run --project SukiUI.Motion.Playground -- --measure-c1 c1.txt 6
 dotnet run --project SukiUI.Motion.Playground -- --measure-cost cost.txt 200 6
 dotnet run --project SukiUI.Motion.Playground -- --measure-stall stall.txt
+dotnet run --project SukiUI.Motion.Playground -- --measure-latency latency.txt 6
 ```
+
+`--measure-latency` — зонд на потоке рендера: время позы движка против серверных кадров, повторы кадров
+(фаза 3, P2; ENGINEERING_NOTES §8.10).
 
 `PlaygroundSmokeTests` в `SukiUI.Motion.Tests` строит каждую сцену и нажимает каждую кнопку
 в headless — playground не должен ломаться незаметно.
