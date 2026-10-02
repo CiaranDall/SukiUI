@@ -31,6 +31,12 @@ public sealed class MotionHarness : IDisposable
     public void Frame(double ms = FrameMs)
     {
         Now += TimeSpan.FromMilliseconds(ms);
+        // Guarantees a render pass this frame. Without it a pending RAF can be left on
+        // Avalonia's real-time fallback timer, which headless never fires on its own: the
+        // headless render timer ALSO ticks on real time, and when that lands inside a frame the
+        // ticker dispatches twice at the same virtual time, the second dispatch writes nothing
+        // and the RAF chain moves to that fallback (ENGINEERING_NOTES §2.5).
+        Window.InvalidateVisual();
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
         Flush();
     }
