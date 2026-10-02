@@ -43,3 +43,33 @@ public class HarnessTests
         Assert.Equal(2.0, scale.Value);
     }
 }
+
+public class HarnessRealTimeTests
+{
+    // Harness flake (found in phase 3): HeadlessRenderTimer also runs a REAL-time 60 Hz
+    // DispatcherTimer. When it fires inside a pumped frame it processes the batch early, the
+    // ticker dispatches a second time at the SAME virtual time, writes nothing new, and
+    // Avalonia re-arms the RAF on its real-time 16 ms fallback timer — which headless never
+    // promotes without another job (ENGINEERING_NOTES §2.4): the animation freezes.
+    // Reproduced deterministically by stalling one frame past the render timer's interval.
+    [AvaloniaFact]
+    public void A_real_time_render_tick_inside_a_frame_does_not_freeze_the_ticker()
+    {
+        var border = new Border();
+        using var h = new MotionHarness(border);
+        var scale = Motion.For(border).Scale;
+        bool stalled = false;
+        using var stall = SukiTicker.Subscribe(border, _ =>
+        {
+            if (stalled)
+                return;
+            stalled = true;
+            Thread.Sleep(40); // > 1/60 s of real time: the render timer is due inside this frame
+        });
+
+        scale.Offer(scale.To(2.0).Over(TimeSpan.FromMilliseconds(160)));
+        h.Frames(20);
+
+        Assert.Equal(2.0, scale.Value);
+    }
+}
