@@ -50,6 +50,11 @@ public abstract class CompositionScene : Scene
 
 public sealed class UiThreadStallScene : CompositionScene
 {
+    /// <summary>Measurement hooks (see <see cref="FrameMeasurement"/>): the engine-driven box
+    /// and every half-cycle start, in SukiTicker time.</summary>
+    internal static Border? EngineBox;
+    internal static Action<TimeSpan>? HalfCycleStarted;
+
     public override string BugId => "Composition C1";
     public override string Title => "Анимация при занятом UI-потоке";
     public override string Steps =>
@@ -61,7 +66,9 @@ public sealed class UiThreadStallScene : CompositionScene
         "Composition-анимации вычисляются там же (KeyFrameAnimationInstance) и не требуют UI-потока.";
     public override string Expected =>
         "Верхний квадрат замирает на 1.5 с (и потом прыгает), нижний продолжает плавно качаться. " +
-        "Сама кнопка тоже «залипает» — это нормально, UI-поток спит.";
+        "Сама кнопка тоже «залипает» — это нормально, UI-поток спит. Замер (--measure-c1): без нагрузки движок идёт " +
+        "ровно (≈144 кадр/с на 144 Гц, ±0.5 мс), но каждый полупериод на ~1.3 мс длиннее 700 мс (следующий полупериод " +
+        "стартует с кадра settle) — квадраты постепенно расходятся по фазе; после «залипания» верхний сдвигается по фазе навсегда.";
 
     protected override Control Build()
     {
@@ -77,12 +84,14 @@ public sealed class UiThreadStallScene : CompositionScene
             if (TopLevel.GetTopLevel(top) is null)
                 return; // page left: stop the loop
             right = !right;
+            HalfCycleStarted?.Invoke(SukiMotionStats.Now);
             new Choreography()
                 .And(x.To(right ? 300 : 0).Over(half).Ease(new SineEaseInOut()))
                 .Then(Swing)
                 .Start(top);
         }
         top.AttachedToVisualTree += (_, _) => Dispatcher.UIThread.Post(Swing);
+        EngineBox = top;
 
         WithVisual(bottom, v => PingPong(v, 300, half), v => v.StopAnimation("Translation"));
 
@@ -100,30 +109,25 @@ public sealed class OpacitySyncScene : CompositionScene
     public override string BugId => "Composition C2";
     public override string Title => "Синхронизация Visual → CompositionVisual";
     public override string Steps =>
-        "«Запустить»: composition-анимация Opacity 1 → 0.15 за 4 с. Во время неё нажмите «InvalidateVisual» " +
-        "(перерисовка без изменения Opacity), затем «Visual.Opacity = 0.99».";
+        "Нажмите «Запустить все четыре». Каждый квадрат — composition-анимация Opacity 1 → 0.15 за 4 с, " +
+        "у каждого свой сценарий (подпись под квадратом). Через 1.5 с сценарии B и C делают своё действие. " +
+        "Сравните квадраты между собой.";
     public override string Before =>
-        "Visual.SynchronizeCompositionProperties при каждой перерисовке пишет comp.Offset/Size/Visible/Opacity/ClipToBounds " +
-        "(«TODO: dirty mask»). Клиентский сеттер пишет только при изменении значения, а запись снимает анимацию свойства " +
-        "(ServerObject.SetAnimatedValue → RemoveAnimationForProperty).";
+        "Visual.SynchronizeCompositionProperties при перерисовке пишет comp.Opacity, но клиентский сеттер пишет только " +
+        "при ИЗМЕНЕНИИ значения; запись снимает анимацию свойства. Проверено на пикселях (SukiUI.Motion.RenderTests).";
     public override string Expected =>
-        "InvalidateVisual НЕ ломает анимацию (Opacity элемента не менялась). Visual.Opacity = 0.99 — анимация обрывается, " +
-        "квадрат сразу становится 0.99. Строка ниже: Visual.Opacity остаётся 1, пока на экране 0.15 — UI-поток «не знает», что видно.";
+        "A — плавно бледнеет 4 с. B (InvalidateVisual на 1.5 с) — как A, ничего не ломается. " +
+        "C (Visual.Opacity = 0.99 на 1.5 с) — на 1.5 с резко становится почти чёрным и остаётся. " +
+        "D (Visual.Opacity изменена прямо перед стартом, в том же кадре) — не анимируется вообще.";
 
     protected override Control Build()
     {
-        var box = Box("#2E9E6B", 90);
-        var readout = new TextBlock();
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-        timer.Tick += (_, _) => readout.Text =
-            $"Visual.Opacity = {box.Opacity:0.00}   comp.Opacity (чтение на UI-потоке) = " +
-            $"{ElementComposition.GetElementVisual(box)?.Opacity:0.00}";
-        box.AttachedToVisualTree += (_, _) => timer.Start();
-        box.DetachedFromVisualTree += (_, _) => timer.Stop();
+        var boxes = new[] { "A: только анимация", "B: + InvalidateVisual", "C: + Visual.Opacity = 0.99", "D: Opacity перед стартом" }
+            .Select(label => (Label: label, Box: Box("#000000", 80)))
+            .ToArray();
 
-        void Start()
+        static void Fade(Border box)
         {
-            box.Opacity = 1.0;
             if (ElementComposition.GetElementVisual(box) is not { } v)
                 return;
             var anim = v.Compositor.CreateScalarKeyFrameAnimation();
@@ -132,13 +136,32 @@ public sealed class OpacitySyncScene : CompositionScene
             v.StartAnimation("Opacity", anim);
         }
 
-        return Column(
-            Row(
-                Btn("Запустить", Start),
-                Btn("InvalidateVisual", () => box.InvalidateVisual()),
-                Btn("Visual.Opacity = 0.99", () => box.Opacity = 0.99)),
-            new Border { Padding = new Thickness(20), Child = box, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left },
-            readout);
+        void RunAll()
+        {
+            // Reset in a separate frame: a Visual.Opacity change and StartAnimation of the same
+            // property in ONE batch cancel the animation (that is exactly scenario D).
+            foreach (var (_, box) in boxes)
+                box.Opacity = 1.0;
+            DispatcherTimer.RunOnce(() =>
+            {
+                Fade(boxes[0].Box);
+                Fade(boxes[1].Box);
+                Fade(boxes[2].Box);
+                boxes[3].Box.Opacity = 0.98; // scenario D: change, then start, same frame
+                Fade(boxes[3].Box);
+                DispatcherTimer.RunOnce(() =>
+                {
+                    boxes[1].Box.InvalidateVisual();
+                    boxes[2].Box.Opacity = 0.99;
+                }, TimeSpan.FromMilliseconds(1500));
+            }, TimeSpan.FromMilliseconds(100));
+        }
+
+        var row = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 24 };
+        foreach (var (label, box) in boxes)
+            row.Children.Add(new StackPanel { Spacing = 6, Children = { box, new TextBlock { Text = label, Width = 130, TextWrapping = TextWrapping.Wrap } } });
+
+        return Column(Btn("Запустить все четыре", RunAll), row);
     }
 }
 

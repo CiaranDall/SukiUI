@@ -71,6 +71,12 @@ public sealed class MainWindow : Window
         timer.Tick += (_, _) => UpdateStats();
         timer.Start();
         list.SelectedIndex = 0;
+
+        if (Program.MeasureC1 is { } measure)
+        {
+            list.SelectedIndex = Array.FindIndex(AllScenes, sc => sc is UiThreadStallScene);
+            FrameMeasurement.Run(this, measure.Path, measure.Seconds);
+        }
     }
 
     private void UpdateStats()
