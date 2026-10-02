@@ -15,6 +15,7 @@
          surface is the Enable lifecycle, the programmatic drive and the instrumentation. -->
     <InternalsVisibleTo Include="SukiUI" />
     <InternalsVisibleTo Include="SukiUI.Motion.Tests" />
+    <InternalsVisibleTo Include="SukiUI.Motion.RenderTests" />
   </ItemGroup>
 
 </Project>
