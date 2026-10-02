@@ -26,6 +26,8 @@ public sealed class MainWindow : Window
         new OpacitySyncScene(),
         new NoReadbackScene(),
         new HitTestScene(),
+        // Prototype of the composition backend (PLAN D21).
+        new PrototypeSpringScene(),
     };
 
     private readonly ContentControl _host = new() { Margin = new Thickness(24) };
@@ -72,7 +74,9 @@ public sealed class MainWindow : Window
         timer.Start();
         list.SelectedIndex = 0;
 
-        if (Program.MeasureC1 is { } measure)
+        if (Program.MeasureCost is { } cost)
+            CostMeasurement.Run(this, cost.Path, cost.Boxes, cost.Seconds);
+        else if (Program.MeasureC1 is { } measure)
         {
             list.SelectedIndex = Array.FindIndex(AllScenes, sc => sc is UiThreadStallScene);
             FrameMeasurement.Run(this, measure.Path, measure.Seconds);

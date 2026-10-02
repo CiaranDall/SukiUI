@@ -51,5 +51,18 @@ git restore --worktree -- SukiUI.Motion
 | C3 Нет чтения на UI-потоке | `comp.Scale`, прочитанный на UI-потоке, не меняется во время анимации |
 | C4 Хит-тест и геометрия | hover следует нарисованной позиции; `TranslatePoint` видит позицию из layout |
 
+Прототип composition-бэкенда (PLAN D21):
+
+| Сцена | Что проверяет |
+|---|---|
+| P1 Composition-бэкенд | те же пружины на UI-потоке и на потоке рендера: прерывание, удар, нагрузка UI-потока |
+
+Замеры (окно открывается и закрывается само, отчёт — в файл):
+
+```bash
+dotnet run --project SukiUI.Motion.Playground -- --measure-c1 c1.txt 6
+dotnet run --project SukiUI.Motion.Playground -- --measure-cost cost.txt 200 6
+```
+
 `PlaygroundSmokeTests` в `SukiUI.Motion.Tests` строит каждую сцену и нажимает каждую кнопку
 в headless — playground не должен ломаться незаметно.

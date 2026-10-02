@@ -12,6 +12,10 @@ internal static class Program
     /// frame-timing report and exit (see <see cref="FrameMeasurement"/>).</summary>
     internal static (string Path, double Seconds)? MeasureC1;
 
+    /// <summary><c>--measure-cost &lt;report path&gt; [boxes] [seconds]</c>: engine vs composition
+    /// prototype CPU cost (see <see cref="CostMeasurement"/>).</summary>
+    internal static (string Path, int Boxes, double Seconds)? MeasureCost;
+
     [STAThread]
     public static int Main(string[] args)
     {
@@ -19,6 +23,14 @@ internal static class Program
         if (i >= 0 && i + 1 < args.Length)
             MeasureC1 = (args[i + 1], i + 2 < args.Length && double.TryParse(args[i + 2],
                 System.Globalization.CultureInfo.InvariantCulture, out var s) ? s : 6.0);
+        int c = Array.IndexOf(args, "--measure-cost");
+        if (c >= 0 && c + 1 < args.Length)
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            int boxes = c + 2 < args.Length && int.TryParse(args[c + 2], inv, out var n) ? n : 200;
+            double secs = c + 3 < args.Length && double.TryParse(args[c + 3], inv, out var d) ? d : 6.0;
+            MeasureCost = (args[c + 1], boxes, secs);
+        }
         return BuildApp(args);
     }
 

@@ -17,6 +17,10 @@ namespace SukiUI.Motion.Composition
         double Position(double t);
 
         double Velocity(double t);
+
+        /// <summary>Magnitude bound of the acceleration around <paramref name="t"/> — drives the
+        /// adaptive key-frame spacing (linear-interpolation error ≈ |a|·h²/8).</summary>
+        double Acceleration(double t);
     }
 
     /// <summary>A pose at rest.</summary>
@@ -31,6 +35,8 @@ namespace SukiUI.Motion.Composition
         public double Position(double t) => _value;
 
         public double Velocity(double t) => 0.0;
+
+        public double Acceleration(double t) => 0.0;
     }
 
     /// <summary>
@@ -44,7 +50,7 @@ namespace SukiUI.Motion.Composition
 
         private enum Regime { Under, Critical, Over }
 
-        private readonly double _target, _d0, _a;
+        private readonly double _target, _d0, _a, _omega2, _decay;
         private readonly Regime _regime;
         private readonly double _w;      // omega_d (under) or omega_o (over)
         private readonly double _b;      // under / critical second coefficient
@@ -57,7 +63,9 @@ namespace SukiUI.Motion.Composition
             _target = target;
             _d0 = x0 - target;
             _a = spring.Decay / 2.0;
-            double omega2 = spring.Omega * spring.Omega;
+            _decay = spring.Decay;
+            _omega2 = spring.Omega * spring.Omega;
+            double omega2 = _omega2;
             double disc = omega2 - _a * _a;
 
             if (Math.Abs(disc) <= 1e-9 * omega2)
@@ -87,6 +95,9 @@ namespace SukiUI.Motion.Composition
         public double Duration { get; }
 
         public double Position(double t) => _target + Displacement(t);
+
+        /// <summary>Exact, from the equation of motion itself.</summary>
+        public double Acceleration(double t) => -_omega2 * Displacement(t) - _decay * Velocity(t);
 
         public double Velocity(double t)
         {
@@ -188,6 +199,14 @@ namespace SukiUI.Motion.Composition
             if (t <= 0)
                 return _from;
             return _from + (_to - _from) * _easing.Ease(t / _duration);
+        }
+
+        public double Acceleration(double t)
+        {
+            if (_duration <= 0 || t >= _duration || t < 0)
+                return 0.0;
+            double t0 = Math.Max(0.0, t - DerivativeStep), t1 = Math.Min(_duration, t + DerivativeStep);
+            return (Velocity(t1) - Velocity(t0)) / (t1 - t0);
         }
 
         public double Velocity(double t)

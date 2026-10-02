@@ -36,8 +36,9 @@ namespace SukiUI.Motion.Composition
     [Experimental(ExperimentalIds.CompositionBackend)]
     public sealed class CompositionSurface
     {
-        /// <summary>Key-frame spacing of the sampled curves: sub-pixel linear-interpolation error at UI speeds.</summary>
-        private const double SampleStep = 0.004;
+        // Interpolation tolerance of the sampled key frames (see KeyFrameGrid).
+        private const double TranslateTolerance = 0.25; // DIPs
+        private const double ScaleTolerance = 0.0025;   // ≈ 0.25 DIP on a 100-DIP element
 
         private static readonly LinearEasing Linear = new();
         private readonly Visual _visual;
@@ -94,20 +95,27 @@ namespace SukiUI.Motion.Composition
             }
 
             var anim = visual.Compositor.CreateVector3DKeyFrameAnimation();
-            int n = Math.Max(1, (int)Math.Ceiling(remaining / SampleStep));
-            for (int i = 1; i <= n; i++)
+            double tolerance = isScale ? ScaleTolerance : TranslateTolerance;
+            var times = KeyFrameGrid.Build(
+                tau => MaxAcceleration(isScale, now + TimeSpan.FromSeconds(tau)), remaining, tolerance);
+            for (int i = 0; i < times.Count; i++)
             {
                 // The first segment starts from the compositor's CURRENT value (implicit start):
                 // pose continuity on interruption, and the commit latency is smoothed out. The last
                 // key is the exact final pose, so server and client agree once at rest.
-                var value = i == n
+                bool last = i == times.Count - 1;
+                var value = last
                     ? Sample(isScale, now, final: true)
-                    : Sample(isScale, now + TimeSpan.FromSeconds(remaining * i / n), final: false);
-                anim.InsertKeyFrame((float)i / n, value, Linear);
+                    : Sample(isScale, now + TimeSpan.FromSeconds(times[i]), final: false);
+                anim.InsertKeyFrame(last ? 1f : (float)(times[i] / remaining), value, Linear);
             }
             anim.Duration = TimeSpan.FromSeconds(remaining);
             visual.StartAnimation(isScale ? "Scale" : "Translation", anim);
         }
+
+        private double MaxAcceleration(bool isScale, TimeSpan at) => isScale
+            ? Math.Abs(Scale.AccelerationAt(at))
+            : Math.Max(Math.Abs(TranslateX.AccelerationAt(at)), Math.Abs(TranslateY.AccelerationAt(at)));
 
         private Vector3D Sample(bool isScale, TimeSpan at, bool final)
         {
@@ -204,6 +212,8 @@ namespace SukiUI.Motion.Composition
         internal double FinalValue => _final;
 
         internal double PositionAt(TimeSpan at) => _curve.Position((at - _start).TotalSeconds);
+
+        internal double AccelerationAt(TimeSpan at) => _curve.Acceleration((at - _start).TotalSeconds);
 
         internal double Remaining(TimeSpan now) => Math.Max(0.0, _curve.Duration - (now - _start).TotalSeconds);
 
