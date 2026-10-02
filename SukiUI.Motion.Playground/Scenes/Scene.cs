@@ -67,6 +67,13 @@ public abstract class Scene
         return b;
     }
 
+    protected static Button Btn(string text, Func<Task> onClick)
+    {
+        var b = new Button { Content = text };
+        b.Click += async (_, _) => await onClick();
+        return b;
+    }
+
     protected static Border Box(string color, double size = 60) => new()
     {
         Width = size,

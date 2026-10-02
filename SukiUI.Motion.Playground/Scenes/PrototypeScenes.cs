@@ -13,13 +13,16 @@ public sealed class PrototypeSpringScene : CompositionScene
     public override string Steps =>
         "Оба квадрата получают одни и те же команды: верхний — SukiUI.Motion (UI-поток), нижний — прототип " +
         "CompositionMotion (поток рендера). «Туда / обратно» можно жать посреди полёта (прерывание с инерцией). " +
-        "«Удар» — пинок скоростью с места. «Туда + занять UI-поток на 1 с» — запуск и сразу сон UI-потока.";
+        "«Удар» — пинок скоростью с места. Два варианта нагрузки: «… сразу» — запуск и сон UI-потока в том же " +
+        "обработчике; «… после коммита» — запуск, await CompositionMotion.CommitAsync(), потом сон.";
     public override string Before =>
         "Прототип держит точную модель пружины на UI-потоке (поза и скорость для прерываний) и отдаёт её композитору " +
         "один раз на старт — плотными ключевыми кадрами; покадровой работы на UI-потоке нет (PLAN D21).";
     public override string Expected =>
         "Без нагрузки квадраты двигаются одинаково: те же перелёты, те же развороты при прерывании, без рывка. " +
-        "Под нагрузкой верхний замирает и потом прыгает, нижний доигрывает пружину плавно.";
+        "«… сразу»: замирают ОБА — запуск доходит до композитора только с коммитом, а коммит выполняет UI-поток; " +
+        "после сна нижний проигрывает пружину целиком, верхний прыгает. «… после коммита»: верхний замирает и прыгает, " +
+        "нижний всю секунду плавно доигрывает пружину. (Замер --measure-stall, ENGINEERING_NOTES §7.15.)";
 
     protected override Control Build()
     {
@@ -45,9 +48,15 @@ public sealed class PrototypeSpringScene : CompositionScene
             Row(
                 Btn("Туда / обратно", () => Go(target == 0 ? 300 : 0)),
                 Btn("Удар", () => Go(target, kick: target == 0 ? 1800 : -1800)),
-                Btn("Туда + занять UI-поток на 1 с", () =>
+                Btn("Туда + занять UI-поток на 1 с сразу", () =>
                 {
                     Go(target == 0 ? 300 : 0);
+                    Thread.Sleep(1000); // same handler: nothing is committed during the sleep
+                }),
+                Btn("Туда + занять UI-поток на 1 с после коммита", async () =>
+                {
+                    Go(target == 0 ? 300 : 0);
+                    await CompositionMotion.CommitAsync(); // the start reaches the render thread first
                     Thread.Sleep(1000);
                 })),
             new TextBlock { Text = "SukiUI.Motion (UI-поток):" },

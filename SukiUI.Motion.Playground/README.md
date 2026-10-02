@@ -62,6 +62,7 @@ git restore --worktree -- SukiUI.Motion
 ```bash
 dotnet run --project SukiUI.Motion.Playground -- --measure-c1 c1.txt 6
 dotnet run --project SukiUI.Motion.Playground -- --measure-cost cost.txt 200 6
+dotnet run --project SukiUI.Motion.Playground -- --measure-stall stall.txt
 ```
 
 `PlaygroundSmokeTests` в `SukiUI.Motion.Tests` строит каждую сцену и нажимает каждую кнопку

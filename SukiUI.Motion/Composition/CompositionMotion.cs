@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Animation.Easings;
 using Avalonia.Rendering.Composition;
@@ -16,7 +17,7 @@ namespace SukiUI.Motion.Composition
 
     /// <summary>
     /// PROTOTYPE (PLAN D21) — transform channels played by Avalonia's compositor on the render
-    /// thread: they keep moving while the UI thread is busy. One surface per visual.
+    /// thread: once started, they keep moving while the UI thread is busy. One surface per visual.
     /// </summary>
     [Experimental(ExperimentalIds.CompositionBackend)]
     public static class CompositionMotion
@@ -25,13 +26,32 @@ namespace SukiUI.Motion.Composition
 
         public static CompositionSurface For(Visual visual) =>
             Surfaces.GetValue(visual, v => new CompositionSurface(v));
+
+        /// <summary>
+        /// Completes once every composition change issued so far — the starts included — has reached
+        /// the render thread. A start only travels with the next commit, and commits run ON THE UI
+        /// THREAD: a start followed by synchronous heavy work in the same handler does not move until
+        /// that work ends (measured, ENGINEERING_NOTES §7.15). Await this between the start and the
+        /// heavy work: <c>x.SpringTo(…); await CompositionMotion.CommitAsync(); BuildPage();</c>.
+        /// </summary>
+        public static Task CommitAsync() =>
+            Compositor.TryGetDefaultCompositor()?.RequestCommitAsync() ?? Task.CompletedTask;
     }
 
     /// <summary>
     /// The composition-backed channels of one visual. Axes of one composition property are played
     /// together: TranslateX and TranslateY are the two components of <c>Translation</c>, so starting
     /// either rebuilds the whole <c>Translation</c> animation from both curves (one key-frame track per
-    /// property — ENGINEERING_NOTES §7.6 / PLAN D21).
+    /// property — PLAN D21).
+    /// <para>
+    /// Pushes are deferred to the commit (<see cref="Compositor.RequestCompositionUpdate"/>): the
+    /// compositor times an animation from its batch commit, which runs on the UI thread at the next
+    /// render pass — possibly long after the call if the UI thread is busy. Building the key frames
+    /// AT the commit, and re-timing the curves started since the previous commit to that moment,
+    /// keeps the UI-side curves (pose and velocity for interruptions, completion) in step with the
+    /// screen (ENGINEERING_NOTES §7.15). It also makes the push reflect the final state of the turn:
+    /// <c>SpringTo</c> then <c>Pose</c> in one handler sends only the pose.
+    /// </para>
     /// </summary>
     [Experimental(ExperimentalIds.CompositionBackend)]
     public sealed class CompositionSurface
@@ -42,6 +62,7 @@ namespace SukiUI.Motion.Composition
 
         private static readonly LinearEasing Linear = new();
         private readonly Visual _visual;
+        private bool _translationDirty, _scaleDirty, _flushRequested;
 
         internal CompositionSurface(Visual visual)
         {
@@ -54,8 +75,8 @@ namespace SukiUI.Motion.Composition
             // poses (and running curves) to the fresh one.
             visual.AttachedToVisualTree += (_, _) =>
             {
-                Apply(isScale: false);
-                Apply(isScale: true);
+                MarkDirty(isScale: false);
+                MarkDirty(isScale: true);
             };
             visual.PropertyChanged += (_, e) =>
             {
@@ -74,16 +95,47 @@ namespace SukiUI.Motion.Composition
         /// AFTER the visual's RenderTransform (ENGINEERING_NOTES §7.11).</summary>
         public CompositionChannel Scale { get; }
 
-        /// <summary>Pushes the current curves of one property to the compositor: a static value at
-        /// rest, otherwise one sampled key-frame animation covering the longest remaining curve.</summary>
-        internal void Apply(bool isScale)
+        /// <summary>Schedules a push of one property at the next commit.</summary>
+        internal void MarkDirty(bool isScale)
         {
-            if (ElementComposition.GetElementVisual(_visual) is not { } visual)
-                return; // detached: re-applied at the next attach
             if (isScale)
-                UpdateCenter();
+                _scaleDirty = true;
+            else
+                _translationDirty = true;
+            if (_flushRequested || ElementComposition.GetElementVisual(_visual) is not { } visual)
+                return; // already scheduled, or detached (re-marked at the next attach)
+            _flushRequested = true;
+            visual.Compositor.RequestCompositionUpdate(Flush);
+        }
 
+        /// <summary>Runs on the UI thread immediately before the commit — the instant the compositor
+        /// will time the pushed animations from.</summary>
+        private void Flush()
+        {
+            _flushRequested = false;
+            if (ElementComposition.GetElementVisual(_visual) is not { } visual)
+                return;
             var now = SukiTicker.Now;
+            if (_translationDirty)
+            {
+                _translationDirty = false;
+                TranslateX.Commit(now);
+                TranslateY.Commit(now);
+                Push(visual, isScale: false, now);
+            }
+            if (_scaleDirty)
+            {
+                _scaleDirty = false;
+                Scale.Commit(now);
+                UpdateCenter();
+                Push(visual, isScale: true, now);
+            }
+        }
+
+        /// <summary>Pushes the current curves of one property: a static value at rest, otherwise one
+        /// sampled key-frame animation covering the longest remaining curve.</summary>
+        private void Push(CompositionVisual visual, bool isScale, TimeSpan now)
+        {
             double remaining = isScale
                 ? Scale.Remaining(now)
                 : Math.Max(TranslateX.Remaining(now), TranslateY.Remaining(now));
@@ -100,9 +152,9 @@ namespace SukiUI.Motion.Composition
                 tau => MaxAcceleration(isScale, now + TimeSpan.FromSeconds(tau)), remaining, tolerance);
             for (int i = 0; i < times.Count; i++)
             {
-                // The first segment starts from the compositor's CURRENT value (implicit start):
-                // pose continuity on interruption, and the commit latency is smoothed out. The last
-                // key is the exact final pose, so server and client agree once at rest.
+                // The first segment starts from the compositor's CURRENT value (implicit start): pose
+                // continuity on interruption. The last key is the exact final pose, so server and
+                // client agree once at rest.
                 bool last = i == times.Count - 1;
                 var value = last
                     ? Sample(isScale, now, final: true)
@@ -132,7 +184,7 @@ namespace SukiUI.Motion.Composition
         /// <summary>
         /// A static write that ALWAYS reaches the compositor. The client setter skips a value equal to
         /// its field, and that field is the last UI-side write, not what is on screen
-        /// (ENGINEERING_NOTES §7.4): <c>Pose(0)</c> during an animation that started from 0 would be
+        /// (ENGINEERING_NOTES §7.12): <c>Pose(0)</c> during an animation that started from 0 would be
         /// silently dropped and the animation would keep running. A neighbouring value first makes
         /// the write a change; only the last value of the batch is sent.
         /// </summary>
@@ -176,6 +228,7 @@ namespace SukiUI.Motion.Composition
         private ICurve _curve;
         private double _final;
         private TimeSpan _start;
+        private bool _uncommitted;   // started since the last commit: its timing is provisional
         private IDisposable? _settle;
 
         internal CompositionChannel(CompositionSurface owner, bool isScale, double rest)
@@ -190,11 +243,11 @@ namespace SukiUI.Motion.Composition
         public double Value => PositionAt(SukiTicker.Now);
 
         /// <summary>Current velocity, from the curve.</summary>
-        public double Velocity => _curve.Velocity((SukiTicker.Now - _start).TotalSeconds);
+        public double Velocity => _curve.Velocity(Elapsed(SukiTicker.Now));
 
-        public bool IsAnimating => _settle is not null;
+        public bool IsAnimating => _settle is not null || (_uncommitted && _curve.Duration > 0);
 
-        /// <summary>Raised once the running curve has come to rest (not for <see cref="Pose"/>).</summary>
+        /// <summary>Raised once the running curve has come to rest on screen (not for <see cref="Pose"/>).</summary>
         public event Action? Settled;
 
         /// <summary>A damped spring toward <paramref name="target"/> from the live pose, carrying the
@@ -211,11 +264,29 @@ namespace SukiUI.Motion.Composition
 
         internal double FinalValue => _final;
 
-        internal double PositionAt(TimeSpan at) => _curve.Position((at - _start).TotalSeconds);
+        internal double PositionAt(TimeSpan at) => _curve.Position(Elapsed(at));
 
-        internal double AccelerationAt(TimeSpan at) => _curve.Acceleration((at - _start).TotalSeconds);
+        internal double AccelerationAt(TimeSpan at) => _curve.Acceleration(Elapsed(at));
 
-        internal double Remaining(TimeSpan now) => Math.Max(0.0, _curve.Duration - (now - _start).TotalSeconds);
+        internal double Remaining(TimeSpan now) => Math.Max(0.0, _curve.Duration - Elapsed(now));
+
+        /// <summary>
+        /// The commit that carries this channel's push is happening now. A curve started since the
+        /// previous commit has not been on screen yet: it starts NOW (re-timed from its call time;
+        /// the gap is the UI thread's busy time) and its completion is re-armed accordingly.
+        /// </summary>
+        internal void Commit(TimeSpan now)
+        {
+            if (!_uncommitted)
+                return; // already on screen and timed: the rebuilt animation continues it
+            _uncommitted = false;
+            _start = now;
+            ArmSettle();
+        }
+
+        /// <summary>Elapsed curve time at <paramref name="at"/>. A curve not committed yet has not
+        /// started on screen: it is held at its beginning.</summary>
+        private double Elapsed(TimeSpan at) => _uncommitted ? 0.0 : Math.Max(0.0, (at - _start).TotalSeconds);
 
         private void Start(ICurve curve, double final)
         {
@@ -224,9 +295,16 @@ namespace SukiUI.Motion.Composition
             _curve = curve;
             _final = final;
             _start = SukiTicker.Now;
-            if (curve.Duration > 0)
-                _settle = DispatcherTimer.RunOnce(OnSettled, TimeSpan.FromSeconds(curve.Duration));
-            _owner.Apply(_isScale);
+            _uncommitted = true; // timed for real at the commit (CompositionSurface.Flush)
+            _owner.MarkDirty(_isScale);
+        }
+
+        private void ArmSettle()
+        {
+            _settle?.Dispose();
+            _settle = _curve.Duration > 0
+                ? DispatcherTimer.RunOnce(OnSettled, TimeSpan.FromSeconds(_curve.Duration))
+                : null;
         }
 
         private void OnSettled()
@@ -234,7 +312,7 @@ namespace SukiUI.Motion.Composition
             _settle = null;
             _curve = new RestCurve(_final);
             _start = SukiTicker.Now;
-            _owner.Apply(_isScale); // the other axis of the property may still be running
+            _owner.MarkDirty(_isScale); // static final pose; the other axis may still be running
             Settled?.Invoke();
         }
     }

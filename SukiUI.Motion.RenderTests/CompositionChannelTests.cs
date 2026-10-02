@@ -87,12 +87,17 @@ public class CompositionChannelTests(ITestOutputHelper output)
         x.SpringTo(0, spring);
         int after = Left(w, "right after interruption");
         Pixels.Wait(TimeSpan.FromMilliseconds(40));
-        int later = Left(w, "40 ms later");
+        double model = x.Value;
+        int later = Left(w, "~40 ms later");
 
-        output.WriteLine($"model velocity at the switch: {velocity:0} px/s");
+        // Timing-independent: the real wait may overshoot under machine load (the spring may have
+        // turned around by then), so the screen is compared with the curve AT THE SAME instant
+        // instead of with a "still moving forward" guess. Velocity continuity across the switch is
+        // checked exactly in CurveTests.
+        output.WriteLine($"model velocity at the switch: {velocity:0} px/s, model later: {model:0.0}");
         Assert.True(velocity > 300, "precondition: moving fast toward 200");
-        Assert.InRange(after - before, -10, 25); // continues from the on-screen pose
-        Assert.True(later >= before - 5, "momentum: still moving forward (or barely turned) 40 ms later");
+        Assert.InRange(after - before, -10, 25);     // continues from the on-screen pose: no jump
+        Assert.InRange(later - model, -25, 25);      // the screen follows the new curve (≤ ~1 frame of readback lag)
         Pixels.Wait(TimeSpan.FromSeconds(2));
         Assert.InRange(Left(w, "settled"), 0, 1);
         w.Close();
