@@ -16,6 +16,7 @@
     <InternalsVisibleTo Include="SukiUI" />
     <InternalsVisibleTo Include="SukiUI.Motion.Tests" />
     <InternalsVisibleTo Include="SukiUI.Motion.RenderTests" />
+    <InternalsVisibleTo Include="SukiUI.Motion.Benchmarks" />
   </ItemGroup>
 
 </Project>

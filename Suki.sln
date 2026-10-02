@@ -39,6 +39,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SukiUI.Motion.Playground", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SukiUI.Motion.RenderTests", "SukiUI.Motion.RenderTests\SukiUI.Motion.RenderTests.csproj", "{42DC937C-CCB0-4200-A794-28CD3C7F148B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SukiUI.Motion.Benchmarks", "SukiUI.Motion.Benchmarks\SukiUI.Motion.Benchmarks.csproj", "{93EB3EA0-AA39-48D4-9EEB-168D7112C586}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -169,6 +171,18 @@ Global
 		{42DC937C-CCB0-4200-A794-28CD3C7F148B}.Release|x64.Build.0 = Release|Any CPU
 		{42DC937C-CCB0-4200-A794-28CD3C7F148B}.Release|x86.ActiveCfg = Release|Any CPU
 		{42DC937C-CCB0-4200-A794-28CD3C7F148B}.Release|x86.Build.0 = Release|Any CPU
+		{93EB3EA0-AA39-48D4-9EEB-168D7112C586}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93EB3EA0-AA39-48D4-9EEB-168D7112C586}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93EB3EA0-AA39-48D4-9EEB-168D7112C586}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{93EB3EA0-AA39-48D4-9EEB-168D7112C586}.Debug|x64.Build.0 = Debug|Any CPU
+		{93EB3EA0-AA39-48D4-9EEB-168D7112C586}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{93EB3EA0-AA39-48D4-9EEB-168D7112C586}.Debug|x86.Build.0 = Debug|Any CPU
+		{93EB3EA0-AA39-48D4-9EEB-168D7112C586}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93EB3EA0-AA39-48D4-9EEB-168D7112C586}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93EB3EA0-AA39-48D4-9EEB-168D7112C586}.Release|x64.ActiveCfg = Release|Any CPU
+		{93EB3EA0-AA39-48D4-9EEB-168D7112C586}.Release|x64.Build.0 = Release|Any CPU
+		{93EB3EA0-AA39-48D4-9EEB-168D7112C586}.Release|x86.ActiveCfg = Release|Any CPU
+		{93EB3EA0-AA39-48D4-9EEB-168D7112C586}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
