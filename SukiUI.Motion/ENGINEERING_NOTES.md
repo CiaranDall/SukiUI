@@ -332,8 +332,7 @@ UI-потоке, а серверные значения не читаются).
 
 ### 7.8. Не проверено
 
-- Порядок композиции `TransformMatrix` (наш `RenderTransform`) с `Translation`/`Scale`/
-  `RotationAngle`/`CenterPoint` на сервере.
+- ~~Порядок композиции трансформов~~ — проверено, см. §7.11.
 - Стоимость: CPU UI-потока и потока рендера на кадр для обоих подходов — замер в фазе 3 (R3).
 - Поведение на WASM и мобильных платформах.
 
@@ -366,3 +365,15 @@ UI-потоке, а серверные значения не читаются).
   позы (колбэк на UI-потоке) и моментом показа кадра (поток рендера). С UI-потока это не видно.
   Способ измерить — зонд на потоке рендера: `CompositionCustomVisualHandler.OnAnimationFrameUpdate`
   даёт время каждого кадра рендера (`CompositionNow`) → сопоставить с dispatch-ами UI (фаза 3, P2).
+
+### 7.11. Порядок трансформов на сервере
+
+- **Факт.** `MatrixUtils.ComputeTransform` (вызов в `ServerCompositionVisual.ComputedProperties.cs`)
+  в порядке применения к точке: `-AnchorPoint·Size` → `TransformMatrix` (наш `RenderTransform` с его
+  `RenderTransformOrigin`) → `Scale` вокруг `CenterPoint` → `RotationAngle` вокруг `CenterPoint` →
+  `Orientation` → сдвиг на `Offset + Translation`. Комментарий в коде: математика повторяет
+  *наблюдаемое* поведение UWP.
+- **Для нас.** composition `Translation` = наш TranslateX/Y (в системе родителя). composition `Scale`
+  применяется ПОСЛЕ `RenderTransform`: если UI-каналы держат rotate/skew, а scale уходит на composition,
+  порядок меняется (scale·rotate вместо rotate·scale). `CenterPoint` надо ставить самим (аналог
+  `RenderTransformOrigin`) и обновлять при смене размера.
