@@ -10,7 +10,7 @@ public class SpringTests
     // decay·h < 2, so a stiff or heavily damped spring diverges instead of settling.
     [AvaloniaTheory]
     [InlineData(400.0, 560.0)] // stiff: omega·h = 3.2
-    [InlineData(30.0, 400.0)]  // heavily overdamped: decay·h = 3.2
+    [InlineData(60.0, 400.0)]  // heavily overdamped: decay·h = 3.2 (slow mode ~9/s: settles well within 3 s)
     public void Stiff_or_heavily_damped_spring_settles_on_its_target(double omega, double decay)
     {
         var border = new Border();
